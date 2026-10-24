@@ -35,3 +35,10 @@ SmartRoute AI es un MVP académico de siete semanas para gestionar pedidos, segu
 ## Próximos artefactos
 
 `specs/openapi.yaml`, `db/schema.sql`, pruebas de aceptación, estructura inicial de aplicaciones, CI/CD y un Business Case cuantificado.
+
+## Cumplimiento académico UPN Capstone 2026-2
+
+- [Matriz maestra Capstone ↔ SDD](docs/Matriz_Maestra_Capstone_SDD.md): 36 controles basados en T1, EF, plantilla final y mediciones específicas de SmartRoute.
+- [Matriz de seguimiento editable (CSV)](docs/Matriz_Capstone_SmartRoute_v1.csv): criterios, evidencias, semanas, prioridad, estado, responsable y resultado observado.
+
+**Regla:** ninguna evidencia se considera validada hasta asociar su comprobante y revisar el criterio. El objetivo de reducción del 20 % permanece como hipótesis a comprobar, no resultado obtenido.
