@@ -1,0 +1,283 @@
+openapi: 3.0.3
+info:
+  title: SmartRoute AI API
+  version: 2.0.0-design
+  description: Contrato propuesto PA-SDD MVP; no certifica implementación.
+servers:
+  - url: https://YOUR_CLOUD_RUN_URL/api/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Orders
+  - name: Routes
+  - name: Tracking
+  - name: Analytics
+  - name: AI
+paths:
+  /me:
+    get:
+      tags: [Auth]
+      summary: Identidad y rol autenticado
+      responses:
+        '200':
+          description: Identity
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CurrentUser' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /orders:
+    post:
+      tags: [Orders]
+      summary: Operador crea pedido
+      x-roles: [OPERATOR]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Invalid' }
+    get:
+      tags: [Orders]
+      summary: Operador consulta pedidos
+      x-roles: [OPERATOR]
+      parameters:
+        - { in: query, name: status, schema: { type: string, enum: [PENDING, ASSIGNED, IN_TRANSIT, DELIVERED, FAILED] } }
+      responses:
+        '200':
+          description: Orders
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Order' } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /routes:
+    post:
+      tags: [Routes]
+      summary: Operador crea borrador de ruta
+      x-roles: [OPERATOR]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RouteCreate' }
+      responses:
+        '201':
+          description: Route
+          content: { application/json: { schema: { $ref: '#/components/schemas/Route' } } }
+        '422': { $ref: '#/components/responses/Invalid' }
+  /routes/{routeId}/orders:
+    post:
+      tags: [Routes]
+      summary: Añade pedidos a una ruta DRAFT
+      x-roles: [OPERATOR]
+      parameters: [ { $ref: '#/components/parameters/RouteId' } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/OrderIds' } } }
+      responses:
+        '200': { description: Assigned }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Invalid' }
+  /routes/{routeId}/optimize:
+    post:
+      tags: [Routes]
+      summary: Compara base vs optimizada usando una matriz
+      x-roles: [OPERATOR]
+      parameters: [ { $ref: '#/components/parameters/RouteId' } ]
+      responses:
+        '200':
+          description: Evaluation
+          content: { application/json: { schema: { $ref: '#/components/schemas/RouteEvaluation' } } }
+        '422': { $ref: '#/components/responses/RouteInfeasible' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /routes/{routeId}/activate:
+    post:
+      tags: [Routes]
+      summary: Operador publica ruta PLANNED
+      x-roles: [OPERATOR]
+      parameters: [ { $ref: '#/components/parameters/RouteId' } ]
+      responses:
+        '200': { description: Activated, content: { application/json: { schema: { $ref: '#/components/schemas/Route' } } } }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /routes/my/active:
+    get:
+      tags: [Routes]
+      summary: Solo ruta del repartidor autenticado
+      x-roles: [DRIVER]
+      responses:
+        '200': { description: Active route or null, content: { application/json: { schema: { $ref: '#/components/schemas/Route' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /orders/{orderId}/status:
+    patch:
+      tags: [Orders]
+      summary: Actualiza estado con idempotencia
+      x-roles: [DRIVER]
+      parameters:
+        - { name: orderId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 8, maxLength: 128 } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/StatusUpdate' } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/Order' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /locations:
+    post:
+      tags: [Tracking]
+      summary: GPS solo para conductor con ruta ACTIVE y consentimiento
+      x-roles: [DRIVER]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/LocationCreate' } } }
+      responses:
+        '202': { description: Accepted }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Invalid' }
+  /drivers/{driverId}/latest-location:
+    get:
+      tags: [Tracking]
+      summary: Última posición permitida y frescura
+      x-roles: [OPERATOR]
+      parameters: [ { name: driverId, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses:
+        '200': { description: Location, content: { application/json: { schema: { $ref: '#/components/schemas/LocationRead' } } } }
+  /analytics/summary:
+    get:
+      tags: [Analytics]
+      summary: KPI con origen de datos distinguible
+      x-roles: [OPERATOR]
+      responses:
+        '200': { description: Summary, content: { application/json: { schema: { $ref: '#/components/schemas/AnalyticsSummary' } } } }
+  /ai/explain-route:
+    post:
+      tags: [AI]
+      summary: Explicación read-only mediante Vertex AI Gemini (P1)
+      x-roles: [OPERATOR]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ExplainRequest' } } }
+      responses:
+        '200': { description: Explanation, content: { application/json: { schema: { $ref: '#/components/schemas/Explanation' } } } }
+        '503': { $ref: '#/components/responses/Unavailable' }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    RouteId: { in: path, name: routeId, required: true, schema: { type: string, format: uuid } }
+  responses:
+    Unauthorized: { description: Missing or invalid identity }
+    Forbidden: { description: Permission denied }
+    Invalid: { description: Invalid input, code INVALID_INPUT }
+    Conflict: { description: Conflicting state, code CONFLICT }
+    RouteInfeasible: { description: Incomplete matrix or impossible route, code ROUTE_INFEASIBLE }
+    RateLimited: { description: Quota or budget exceeded }
+    Unavailable: { description: Dependency unavailable; no fabricated answer }
+  schemas:
+    CurrentUser:
+      type: object
+      required: [id, role]
+      properties:
+        id: { type: string, format: uuid }
+        role: { type: string, enum: [OPERATOR, DRIVER] }
+    OrderCreate:
+      type: object
+      required: [address_label, latitude, longitude]
+      properties:
+        address_label: { type: string, minLength: 3 }
+        latitude: { type: number, minimum: -90, maximum: 90 }
+        longitude: { type: number, minimum: -180, maximum: 180 }
+        due_at: { type: string, format: date-time, nullable: true }
+    Order:
+      allOf:
+        - { $ref: '#/components/schemas/OrderCreate' }
+        - type: object
+          required: [id, status]
+          properties:
+            id: { type: string, format: uuid }
+            status: { type: string, enum: [PENDING, ASSIGNED, IN_TRANSIT, DELIVERED, FAILED] }
+    RouteCreate:
+      type: object
+      required: [driver_id, depot_latitude, depot_longitude]
+      properties:
+        driver_id: { type: string, format: uuid }
+        depot_latitude: { type: number, minimum: -90, maximum: 90 }
+        depot_longitude: { type: number, minimum: -180, maximum: 180 }
+    Route:
+      allOf:
+        - { $ref: '#/components/schemas/RouteCreate' }
+        - type: object
+          required: [id, status]
+          properties:
+            id: { type: string, format: uuid }
+            status: { type: string, enum: [DRAFT, PLANNED, ACTIVE, COMPLETED, CANCELLED] }
+            stops:
+              type: array
+              items: { type: string, format: uuid }
+    OrderIds:
+      type: object
+      required: [order_ids]
+      properties:
+        order_ids: { type: array, minItems: 1, maxItems: 10, uniqueItems: true, items: { type: string, format: uuid } }
+    RouteEvaluation:
+      type: object
+      required: [route_id, baseline_seconds, optimized_seconds, improvement_pct, ordered_order_ids, data_origin]
+      properties:
+        route_id: { type: string, format: uuid }
+        baseline_seconds: { type: integer, minimum: 0 }
+        optimized_seconds: { type: integer, minimum: 0 }
+        improvement_pct: { type: number }
+        ordered_order_ids: { type: array, items: { type: string, format: uuid } }
+        data_origin: { type: string, enum: [estimated, synthetic] }
+        matrix_fingerprint: { type: string }
+        warnings: { type: array, items: { type: string } }
+    StatusUpdate:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [IN_TRANSIT, DELIVERED, FAILED] }
+    LocationCreate:
+      type: object
+      required: [route_id, latitude, longitude, captured_at]
+      properties:
+        route_id: { type: string, format: uuid }
+        latitude: { type: number, minimum: -90, maximum: 90 }
+        longitude: { type: number, minimum: -180, maximum: 180 }
+        captured_at: { type: string, format: date-time }
+        accuracy_m: { type: number, minimum: 0 }
+    LocationRead:
+      allOf:
+        - { $ref: '#/components/schemas/LocationCreate' }
+        - type: object
+          required: [freshness]
+          properties:
+            freshness: { type: string, enum: [FRESH, STALE] }
+    AnalyticsSummary:
+      type: object
+      required: [data_origin, sample_size]
+      properties:
+        data_origin: { type: string, enum: [observed, synthetic, estimated] }
+        sample_size: { type: integer, minimum: 0 }
+        avg_delivery_minutes: { type: number, nullable: true }
+        avg_route_km: { type: number, nullable: true }
+        on_time_pct: { type: number, nullable: true }
+    ExplainRequest:
+      type: object
+      required: [route_id]
+      properties:
+        route_id: { type: string, format: uuid }
+    Explanation:
+      type: object
+      required: [explanation, action_taken, caveats]
+      properties:
+        explanation: { type: string }
+        action_taken: { type: boolean, enum: [false] }
+        caveats: { type: array, items: { type: string } }
