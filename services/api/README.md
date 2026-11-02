@@ -28,3 +28,11 @@ Test suite exercises create/list, geo validation, no-token rejection, DRIVER for
 
 ## Cost discipline
 Reads limited to 51 documents per page, cursor lookup adds one read; no polling/listeners, Firestore only, Gemini and Google Maps not called. All newly created orders are labeled `synthetic` to prevent misrepresentation as field-observed deliveries.
+
+## US-005: Draft route + atomic order assignment
+- `POST /api/v1/routes` creates a DRAFT route for an existing `drivers/{driverId}`.
+  Payload: `{"driver_id":"<id>","depot":{"latitude":-12.09,"longitude":-77.04}}`.
+- `POST /api/v1/routes/{route_id}/orders` assigns 1–10 pending unique orders; returns 409 if the order is already assigned, route is no longer DRAFT, or capacity is exceeded.
+- Both endpoints require an authenticated OPERATOR. Assignment uses a Firestore transaction, reads all documents before writing and updates route/order documents atomically.
+- Automated test `tests/test_route_transaction.py` runs against Firestore Emulator and checks second-route conflict and no partial assignment.
+- **Not deployed yet.** Staging still requires WIF, runtime IAM, Firestore and Firebase Auth setup. Additional two-request race test is a separate quality gate before a multi-user claim.
