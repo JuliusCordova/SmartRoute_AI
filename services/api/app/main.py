@@ -45,3 +45,42 @@ def list_orders(
         raise HTTPException(status_code=422, detail="Invalid pagination cursor") from None
     except Exception:
         raise HTTPException(status_code=503, detail="Order storage unavailable") from None
+
+# US-005: Firestore routes and transactional assignment
+from .routes import Route, RouteCreate, OrderAssignment, new_route, RecordMissing, AssignmentConflict
+from .firestore_routes import FirestoreRouteRepository
+
+@lru_cache(maxsize=1)
+def get_route_repository() -> FirestoreRouteRepository:
+    return FirestoreRouteRepository()
+
+@app.post("/api/v1/routes", response_model=Route, status_code=201, tags=["Routes"])
+def create_route(
+    payload: RouteCreate,
+    actor: UserContext = Depends(require_operator),
+    repo: FirestoreRouteRepository = Depends(get_route_repository),
+):
+    route = new_route(payload)
+    try:
+        repo.create(route)
+    except RecordMissing as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except Exception:
+        raise HTTPException(status_code=503, detail="Route storage unavailable") from None
+    return route
+
+@app.post("/api/v1/routes/{route_id}/orders", tags=["Routes"])
+def assign_orders(
+    route_id: str,
+    payload: OrderAssignment,
+    actor: UserContext = Depends(require_operator),
+    repo: FirestoreRouteRepository = Depends(get_route_repository),
+):
+    try:
+        return repo.assign(route_id, payload.order_ids)
+    except RecordMissing as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except AssignmentConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+    except Exception:
+        raise HTTPException(status_code=503, detail="Route assignment unavailable") from None
