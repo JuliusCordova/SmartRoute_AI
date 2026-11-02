@@ -8,7 +8,7 @@ flowchart TB
   subgraph GCP["Google Cloud"]
     I["OIDC / Firebase Auth (opción)"]
     CR["Cloud Run — FastAPI modular"]
-    DB[("Cloud SQL: PostgreSQL")]
+    DB[("BigQuery: datos piloto, eventos y KPI")]
     SM["Secret Manager / IAM"]
     LG["Cloud Logging y Monitoring"]
     AR["Artifact Registry + CI/CD WIF"]

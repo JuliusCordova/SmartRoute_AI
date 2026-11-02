@@ -1,7 +1,7 @@
 # Trazabilidad integral — fuente de verdad de ingeniería
 | Causa | Necesidad | Objetivo | Historias | Requisito | Componente | Aceptación | KPI |
 |---|---|---|---|---|---|---|---|
-| CR2 datos dispersos | NEC-01 | OG | US-003…005 | RF-02…04 | Orders + PostgreSQL | AC-002,003 | coordenadas válidas |
+| CR2 datos dispersos | NEC-01 | OG | US-003…005 | RF-02…04 | Orders + BigQuery (piloto) | AC-002,003 | coordenadas válidas |
 | CR1 y CR5 ruteo manual/tráfico | NEC-02 | OE1, OE2 | US-009,010 | RF-08 | Maps Adapter + OR-Tools | AC-008…011 | min/entrega, km/ruta |
 | CR3 falta seguimiento | NEC-03 | OE3 | US-006…008 | RF-05…07 | Mobile + Tracking | AC-004…007,016 | trazabilidad y puntualidad |
 | CR4 no hay métricas | NEC-04 | OE1–OE3 | US-011,015 | RF-09,12 | Analytics + pilot export | AC-012,015 | 3 KPI observados |
