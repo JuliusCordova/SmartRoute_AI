@@ -43,3 +43,7 @@
 
 ## Costos, riesgos y promoción
 El informe contiene estimaciones referenciales que **requieren recalcularse** en las calculadoras oficiales 2026 antes del despliegue, especialmente BigQuery/Maps/Vertex. Establecer cuotas, alertas presupuestales y apagado de recursos. G1–G7 documentados en [Backlog](../specs/BACKLOG_7_WEEKS.md). Diagramas de [datos](diagrams/04-data-erd.md), [secuencia](diagrams/02-route-sequence.md), [estados](diagrams/03-state-machines.md) y [flujo de IA](diagrams/05-llm-evaluation.md).
+
+## Cambio posterior al informe — BigQuery piloto
+
+La decisión actual de datos es BigQuery y reemplaza Cloud SQL para el MVP académico. Ver [ADR-05-BQ](BIGQUERY_PILOT_DECISION.md) y [DDL vigente](../db/bigquery_schema.sql). BigQuery no asegura claves PK/FK ni exactly-once al agregar eventos; no afirmar equivalencia transaccional ni latencia de lectura instantánea sin medirla.
