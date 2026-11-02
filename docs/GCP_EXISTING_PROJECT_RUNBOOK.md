@@ -83,3 +83,20 @@ El smoke emplea OIDC para la cuenta **smartroute-smoke** y prueba `/health` y `/
 - https://docs.cloud.google.com/iam/docs/workload-identity-federation-with-deployment-pipelines
 
 **Stop conditions:** datos ajenos en la base default; prohibición de OAuth provider; permisos insuficientes; facturación/alertas no verificadas; cambio de API o de configuración compartida con impacto. Ante cualquiera, mantener `GCP_STAGING_ENABLED=false`.
+
+## Autorización específica para crear la base (2026-11-01)
+El titular aprobó explícitamente crear una base independiente **`smartroute`** en `proyectopersonal-480420` con protección contra eliminación. La base `(default)` se encuentra ocupada por Atlas DataGob y `gestioncitas` pertenece a otra aplicación. La creación no equivale a autorizar cambios IAM, habilitar producción ni desplegar Cloud Run.
+
+El comando oficial de Google Cloud para Standard Native permite `--database`, `--location`, `--edition=standard`, `--type=firestore-native` y `--delete-protection`. Se eligió `nam5` para coincidir con la ubicación de las bases existentes; verificar latencia y requisitos legales antes de incorporar datos reales. **No hay cuota gratuita para esta base nombrada** y los presupuestos solo alertan, no bloquean automáticamente gastos.
+
+Ejecutar desde Cloud Shell en una copia actualizada de `main`:
+```bash
+cd ~/SmartRoute_AI
+git pull --ff-only
+CONFIRM_CREATE_SMARTROUTE_DB=proyectopersonal-480420/smartroute \
+  bash scripts/gcp-create-smartroute-db.sh
+```
+
+La operación de creación es idempotente frente a una base ya existente (en ese caso no modifica nada). El comando final `describe` debe indicar `name: projects/proyectopersonal-480420/databases/smartroute`, `locationId: nam5`, `type: FIRESTORE_NATIVE` y `deleteProtectionState: DELETE_PROTECTION_ENABLED`. La edición puede omitirse en algunas versiones de respuesta; se solicita explícitamente Standard en la creación. No usar claves de servicio descargadas ni modificar Firestore Rules de Atlas.
+
+**Siguiente gate:** verificar IAM segregado, OIDC WIF y presupuesto/alertas; `GCP_STAGING_ENABLED` permanece desactivado.
