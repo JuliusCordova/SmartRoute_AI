@@ -33,7 +33,7 @@ jobs:
       - name: Unit tests
         run: python -m pytest -q
       - name: Validate shell smoke script
-        run: bash -n ../../scripts/smoke-test.sh ../../scripts/gcp-bootstrap-smartroute-identities.sh ../../scripts/gcp-bind-smartroute-iam.sh ../../scripts/gcp-verify-smartroute-iam.sh ../../scripts/gcp-cloudrun-readiness.sh
+        run: bash -n ../../scripts/smoke-test.sh ../../scripts/gcp-bootstrap-smartroute-identities.sh ../../scripts/gcp-bind-smartroute-iam.sh ../../scripts/gcp-verify-smartroute-iam.sh ../../scripts/gcp-cloudrun-readiness.sh ../../scripts/gcp-bootstrap-staging-service.sh
       - name: Docker build
         run: docker build -t smartroute-api:ci .
 
@@ -91,6 +91,8 @@ jobs:
             echo "::error::Unexpected GCP project. SmartRoute staging is pinned to proyectopersonal-480420."
             exit 1
           fi
+          if [ "$REGION" != "us-central1" ]; then echo "::error::Approved staging region is us-central1"; exit 1; fi
+          if [ "$PROVIDER" != "projects/913797829604/locations/global/workloadIdentityPools/smartroute-ci/providers/smartroute-main" ]; then echo "::error::Unexpected WIF provider"; exit 1; fi
           if [ "$FIRESTORE_DATABASE_ID" != "smartroute" ]; then
             echo "::error::Staging must use dedicated named Firestore database smartroute"
             exit 1
@@ -106,16 +108,36 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
-      - name: Deploy private Cloud Run service from source
+      - uses: google-github-actions/setup-gcloud@v3
+      - name: Build and push immutable SmartRoute image
+        id: image
+        env:
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          REGION: ${{ vars.GCP_REGION }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/smartroute-staging/smartroute-api"
+          TAG="$IMAGE:$COMMIT_SHA"
+          gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
+          docker build --pull -t "$TAG" services/api
+          docker push "$TAG" | tee /tmp/smartroute-docker-push.log
+          DIGEST="$(sed -nE 's/.*digest: (sha256:[a-f0-9]{64}).*/\\1/p' /tmp/smartroute-docker-push.log | tail -n 1)"
+          if [[ ! "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+            echo "::error::No immutable image digest was returned by Docker push"
+            exit 1
+          fi
+          echo "uri=$IMAGE@$DIGEST" >> "$GITHUB_OUTPUT"
+      - name: Deploy private Cloud Run service from verified image
         id: deploy
         uses: google-github-actions/deploy-cloudrun@v3
         with:
           service: smartroute-api-staging
           project_id: ${{ vars.GCP_PROJECT_ID }}
           region: ${{ vars.GCP_REGION }}
-          source: services/api
+          image: ${{ steps.image.outputs.uri }}
           wait: true
-          flags: '--no-allow-unauthenticated --min-instances=0 --service-account=${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}'
+          flags: '--min-instances=0 --max-instances=2 --service-account=${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}'
           env_vars: |
             APP_ENV=staging
             FIREBASE_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}
