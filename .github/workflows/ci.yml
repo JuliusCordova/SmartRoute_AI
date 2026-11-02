@@ -33,7 +33,7 @@ jobs:
       - name: Unit tests
         run: python -m pytest -q
       - name: Validate shell smoke script
-        run: bash -n ../../scripts/smoke-test.sh ../../scripts/gcp-bootstrap-smartroute-identities.sh ../../scripts/gcp-bind-smartroute-iam.sh ../../scripts/gcp-verify-smartroute-iam.sh ../../scripts/gcp-cloudrun-readiness.sh ../../scripts/gcp-bootstrap-staging-service.sh ../../scripts/gcp-recover-staging-push.sh ../../scripts/gcp-verify-staging-http.sh
+        run: bash -n ../../scripts/smoke-test.sh ../../scripts/gcp-bootstrap-smartroute-identities.sh ../../scripts/gcp-bind-smartroute-iam.sh ../../scripts/gcp-verify-smartroute-iam.sh ../../scripts/gcp-cloudrun-readiness.sh ../../scripts/gcp-bootstrap-staging-service.sh ../../scripts/gcp-recover-staging-push.sh ../../scripts/gcp-verify-staging-http.sh ../../scripts/gcp-bind-staging-deploy-iam.sh
       - name: Docker build
         run: docker build -t smartroute-api:ci .
 
@@ -151,6 +151,7 @@ jobs:
           service_account: ${{ vars.GCP_SMOKE_SERVICE_ACCOUNT }}
           token_format: id_token
           id_token_audience: ${{ steps.deploy.outputs.url }}
+          id_token_include_email: true
       - name: Authenticated smoke on deployed revision
         env:
           SERVICE_URL: ${{ steps.deploy.outputs.url }}
