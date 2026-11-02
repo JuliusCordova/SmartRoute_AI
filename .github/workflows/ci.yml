@@ -41,8 +41,14 @@ jobs:
           fi
       - name: Compile isolated Firestore runtime E2E script
         run: python -m py_compile ../../scripts/gcp-firestore-runtime-e2e.py
+      - name: Gateway isolated unit tests
+        run: |
+          python -m pip install -r ../gateway/requirements.txt
+          (cd ../gateway && python -m pytest -q tests)
       - name: Docker build
-        run: docker build -t smartroute-api:ci .
+        run: |
+          docker build -t smartroute-api:ci .
+          docker build -t smartroute-gateway:ci ../gateway
 
   firestore-integration:
     name: firestore-emulator
