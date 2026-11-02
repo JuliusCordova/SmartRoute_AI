@@ -1,5 +1,7 @@
 # SmartRoute AI — staging en GCP compartido (proyectopersonal-480420)
 
+**Preflight ejecutado (2026-11-01):** ya existen dos bases Firestore en `nam5`, `(default)` y `gestioncitas`, y varios servicios Cloud Run. **NO reutilizar `(default)` hasta confirmar colecciones/propietario.** Revisar [hallazgos del preflight](GCP_PREFLIGHT_FINDINGS_2026-11-01.md).
+
 **Decisión de usuario:** reutilizar `proyectopersonal-480420` para SmartRoute AI. **Estado:** proyecto seleccionado y automatización definida en GitHub, **sin acceso de este asistente a GCP, ni recursos inspeccionados, creados o desplegados**. Repositorio `JuliusCordova/SmartRoute_AI`.
 
 ## 0. Inventario obligatorio y control de costos
