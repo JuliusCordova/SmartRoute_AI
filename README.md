@@ -73,3 +73,7 @@ Este repositorio adopta **PA-SDD MVP** inspirado en [DevPattern](https://github.
 - [SDD release gates](docs/RELEASE_CHECKLIST.md) · [Mermaid assisted-SDLC workflow](docs/diagrams/06-assisted-sdlc.md)
 
 **Status:** source scaffolding, not verified deployment. API health/readiness endpoints only; there is no implemented order CRUD, Cloud SQL connection, Flutter/React or ADK service yet. The build-time assisted agent workflow is not the product runtime architecture. Human approvals and actual CI/IAM must enforce deployments.
+
+## Cambio de almacenamiento — piloto académico
+
+La decisión actual es **BigQuery**, no PostgreSQL. Ver [ADR-05-BQ](docs/BIGQUERY_PILOT_DECISION.md), [DDL vigente](db/bigquery_schema.sql) y [modelo de datos Mermaid](docs/diagrams/04-data-erd.md). BigQuery sirve para pocas operaciones y evaluación con datos sintéticos; no es equivalente a OLTP, y la concurrencia/idempotencia deben comprobarse antes de presentar una app multiusuario. Los documentos v1 conservan decisiones históricas para trazabilidad.
