@@ -2,7 +2,7 @@
 import os
 from dataclasses import dataclass
 from functools import lru_cache
-from fastapi import HTTPException, Security
+from fastapi import HTTPException, Security, Header
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 bearer = HTTPBearer(auto_error=False)
@@ -22,13 +22,26 @@ def _firebase_app():
         return firebase_admin.initialize_app(options={"projectId": project_id})
     return firebase_admin.get_app()
 
-def current_user(credentials: HTTPAuthorizationCredentials | None = Security(bearer)) -> UserContext:
-    if credentials is None or credentials.scheme.lower() != "bearer":
-        raise HTTPException(status_code=401, detail="Bearer token required", headers={"WWW-Authenticate": "Bearer"})
+def current_user(
+    credentials: HTTPAuthorizationCredentials | None = Security(bearer),
+    gateway_firebase_token: str | None = Header(default=None, alias="X-SmartRoute-Firebase-Token"),
+) -> UserContext:
+    # Cloud Run's IAM gateway consumes Authorization for the service identity.
+    # Only when explicitly enabled for the PRIVATE Cloud Run backend can the
+    # gateway forward the original Firebase JWT through a separate header.
+    gateway_mode = os.environ.get("SMARTROUTE_PRIVATE_GATEWAY_AUTH") == "true"
+    if gateway_firebase_token is not None:
+        if not gateway_mode or not gateway_firebase_token or credentials is not None:
+            raise HTTPException(status_code=401, detail="Invalid authentication transport")
+        firebase_token = gateway_firebase_token
+    else:
+        if credentials is None or credentials.scheme.lower() != "bearer":
+            raise HTTPException(status_code=401, detail="Bearer token required", headers={"WWW-Authenticate": "Bearer"})
+        firebase_token = credentials.credentials
     try:
         from firebase_admin import auth
         from .firestore_config import firestore_client
-        decoded = auth.verify_id_token(credentials.credentials, app=_firebase_app(), check_revoked=False)
+        decoded = auth.verify_id_token(firebase_token, app=_firebase_app(), check_revoked=False)
         uid = decoded.get("uid")
         if not uid or not isinstance(uid, str):
             raise ValueError("Firebase token missing UID")
