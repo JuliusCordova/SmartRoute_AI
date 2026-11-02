@@ -1,6 +1,6 @@
 # SmartRoute API — US-003/US-004 initial code slice
 
-**Status: implemented source + locally tested; not yet Firestore-emulator integrated or cloud deployed.** See [project SDD](../../../specs/SPEC.md) and [Firestore ADR](../../../docs/FIRESTORE_STANDARD_MVP.md).
+**Status: implemented source + locally tested; not yet Firestore-emulator integrated or cloud deployed.** See [project SDD](../../specs/SPEC.md) and [Firestore ADR](../../docs/FIRESTORE_STANDARD_MVP.md).
 
 ## Endpoints
 - `GET /health`: process health, unauthenticated.
