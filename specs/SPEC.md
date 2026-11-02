@@ -53,7 +53,7 @@ RF-01 autenticación RBAC; RF-02 coordenadas validadas; RF-03 consulta pedidos; 
 - BR-12 registrar 'observed' vs 'synthetic' vs 'estimated' en mediciones, jamás agregarlos sin estrato.
 
 ## 7. Integraciones / errores
-Maps Routes API (computeRouteMatrix/computeRoutes) con quotas, reintentos limitados y validación de elementos; Vertex AI Gemini con salida estructurada, timeout y sin PII; PostgreSQL (Cloud SQL) transaccional; Secret Manager/IAM; Cloud Logging y Monitoring. Si matriz incompleta/inaccesible →422 ROUTE_INFEASIBLE; Maps caído →503 sin inventar ruta; sin permiso →403; datos inválidos →422; asignación conflictiva →409; cuota →429/503 con mensaje y correlación.
+Maps Routes API (computeRouteMatrix/computeRoutes) con quotas, reintentos limitados y validación de elementos; Vertex AI Gemini con salida estructurada, timeout y sin PII; BigQuery para piloto académico de baja concurrencia (sin garantías OLTP; consistencia y reintentos en FastAPI); Secret Manager/IAM; Cloud Logging y Monitoring. Si matriz incompleta/inaccesible →422 ROUTE_INFEASIBLE; Maps caído →503 sin inventar ruta; sin permiso →403; datos inválidos →422; asignación conflictiva →409; cuota →429/503 con mensaje y correlación.
 
 ## 8. Pruebas y métricas
 Ver [tests/acceptance.feature](../tests/acceptance.feature), [evals/README.md](../evals/README.md), [docs/SDD_TRACEABILITY.md](../docs/SDD_TRACEABILITY.md). KPI OE1 = (Tbase - Tpiloto)/Tbase ×100 con tiempos **observados** comparables; OE2 km GPS/ruta; OE3 entregas dentro de ventana/entregas evaluables. Publicar n, origen, ventana, exclusiones y dispersión.
