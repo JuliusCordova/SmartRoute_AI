@@ -60,3 +60,7 @@ Ver [tests/acceptance.feature](../tests/acceptance.feature), [evals/README.md](.
 
 ## 9. Quality gate / estado
 G1 problema y P0 aprobados; G2 contratos/ADR/UX revisados; G3–G6 tests y demos parciales; G7 informe, piloto etiquetado, resultados y veredicto. Un archivo presente en el repositorio NO significa funcionalidad desplegada. No promover sin evidencia de ejecución.
+
+## ADR-05-BQ: enmienda de persistencia del piloto
+
+La especificación de persistencia vigente es [BigQuery para piloto académico](../docs/BIGQUERY_PILOT_DECISION.md), con esquema [BigQuery](../db/bigquery_schema.sql). El PostgreSQL descrito en versiones anteriores es una decisión histórica. AC-003 (asignación duplicada), AC-016 (idempotencia) y RNF de latencia deben validarse contra BigQuery real antes de marcarse completos. No prometer exactly-once sin control transaccional externo.
