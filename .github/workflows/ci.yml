@@ -32,6 +32,8 @@ jobs:
         run: python -m compileall -q app tests
       - name: Unit tests
         run: python -m pytest -q
+      - name: Validate shell smoke script
+        run: bash -n ../../scripts/smoke-test.sh
       - name: Docker build
         run: docker build -t smartroute-api:ci .
 
@@ -72,6 +74,18 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+      - name: Validate staging configuration
+        env:
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          REGION: ${{ vars.GCP_REGION }}
+          PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+          DEPLOYER: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+          RUNTIME: ${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}
+          SMOKE: ${{ vars.GCP_SMOKE_SERVICE_ACCOUNT }}
+        run: |
+          for var in PROJECT_ID REGION PROVIDER DEPLOYER RUNTIME SMOKE; do
+            if [ -z "${!var}" ]; then echo "::error::Missing staging configuration: $var"; exit 1; fi
+          done
       - name: Authenticate with WIF (no JSON keys)
         uses: google-github-actions/auth@v3
         with:
@@ -85,17 +99,34 @@ jobs:
           project_id: ${{ vars.GCP_PROJECT_ID }}
           region: ${{ vars.GCP_REGION }}
           source: services/api
+          wait: true
           flags: '--no-allow-unauthenticated --min-instances=0 --service-account=${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}'
           env_vars: |
             APP_ENV=staging
             FIREBASE_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}
-      - name: Record revision and service URL
+      - name: Generate audience-bound ID token for private staging
+        id: smoke_auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SMOKE_SERVICE_ACCOUNT }}
+          token_format: id_token
+          id_token_audience: ${{ steps.deploy.outputs.url }}
+      - name: Authenticated smoke on deployed revision
+        env:
+          SERVICE_URL: ${{ steps.deploy.outputs.url }}
+          ACCESS_TOKEN: ${{ steps.smoke_auth.outputs.id_token }}
+        run: bash scripts/smoke-test.sh
+      - name: Record verified staging evidence
+        if: success()
         env:
           DEPLOYED_URL: ${{ steps.deploy.outputs.url }}
           PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
           REGION: ${{ vars.GCP_REGION }}
         run: |
-          echo "Cloud Run staging URL: $DEPLOYED_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "## SmartRoute staging smoke PASS" >> "$GITHUB_STEP_SUMMARY"
+          echo "Cloud Run URL: $DEPLOYED_URL" >> "$GITHUB_STEP_SUMMARY"
           echo "Commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
           echo "Project: $PROJECT_ID, region: $REGION" >> "$GITHUB_STEP_SUMMARY"
-          echo "Staging deployed; authenticated API smoke and Firestore integration require separate evidence." >> "$GITHUB_STEP_SUMMARY"
+          echo "HTTP /health and /ready checks passed with Cloud Run IAM; /ready is process-only." >> "$GITHUB_STEP_SUMMARY"
+          echo "Firebase Auth, orders and Firestore staging persistence still require an authenticated application test." >> "$GITHUB_STEP_SUMMARY"
