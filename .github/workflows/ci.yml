@@ -33,7 +33,7 @@ jobs:
       - name: Unit tests
         run: python -m pytest -q
       - name: Validate shell smoke script
-        run: bash -n ../../scripts/smoke-test.sh ../../scripts/gcp-bootstrap-smartroute-identities.sh ../../scripts/gcp-bind-smartroute-iam.sh ../../scripts/gcp-verify-smartroute-iam.sh ../../scripts/gcp-cloudrun-readiness.sh ../../scripts/gcp-bootstrap-staging-service.sh ../../scripts/gcp-recover-staging-push.sh ../../scripts/gcp-verify-staging-http.sh ../../scripts/gcp-bind-staging-deploy-iam.sh ../../scripts/gcp-verify-staging-deploy-iam.sh ../../scripts/github-configure-staging-vars.sh
+        run: bash -n ../../scripts/smoke-test.sh ../../scripts/gcp-bootstrap-smartroute-identities.sh ../../scripts/gcp-bind-smartroute-iam.sh ../../scripts/gcp-verify-smartroute-iam.sh ../../scripts/gcp-cloudrun-readiness.sh ../../scripts/gcp-bootstrap-staging-service.sh ../../scripts/gcp-recover-staging-push.sh ../../scripts/gcp-verify-staging-http.sh ../../scripts/gcp-bind-staging-deploy-iam.sh ../../scripts/gcp-verify-staging-deploy-iam.sh ../../scripts/github-configure-staging-vars.sh ../../scripts/github-protect-staging.sh
       - name: Reject empty gcloud value projection in IAM scripts
         run: |
           if grep -nF -- "--format=value()" ../../scripts/gcp-bind-staging-deploy-iam.sh || grep -nF -- "--format='value()'" ../../scripts/gcp-bind-staging-deploy-iam.sh; then
