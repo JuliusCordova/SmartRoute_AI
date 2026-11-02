@@ -105,3 +105,7 @@ GitHub Actions valida unit tests, Firestore Emulator y Docker. Tras un merge a `
 ## Optimización de rutas, incremento US-009
 
 Se añade [evaluador OR-Tools](services/api/app/optimization.py) con [pruebas](services/api/tests/test_optimization.py) y [criterios de evidencia](docs/US-009-OPTIMIZATION-SLICE.md). Utiliza una matriz **sintética** de 1–10 paradas, sin invocar Maps ni Gemini ni consumir GCP. El solver es heurístico; no prueba optimalidad global ni ahorro observado. Integración con endpoints, matrices Maps y Firestore queda pendiente.
+
+## Entorno staging autorizado: proyecto GCP existente
+
+Se seleccionó **`proyectopersonal-480420`** para el piloto, sujeto a inventario de solo lectura y aprobación de configuración IAM/costos. Antes de crear Firestore, ejecutar [preflight GCP](scripts/gcp-preflight.sh) en Cloud Shell y revisar el [runbook de configuración compartida](docs/GCP_EXISTING_PROJECT_RUNBOOK.md). El pipeline de staging valida que la identidad y el proyecto coincidan con la elección aprobada. **No significa que Firestore/Cloud Run ya existan ni que se haya consumido GCP.**
