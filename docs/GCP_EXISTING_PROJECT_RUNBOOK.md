@@ -1,6 +1,6 @@
 # SmartRoute AI — staging en GCP compartido (proyectopersonal-480420)
 
-**Preflight ejecutado (2026-11-01):** ya existen dos bases Firestore en `nam5`, `(default)` y `gestioncitas`, y varios servicios Cloud Run. **NO reutilizar `(default)` hasta confirmar colecciones/propietario.** Revisar [hallazgos del preflight](GCP_PREFLIGHT_FINDINGS_2026-11-01.md).
+**Preflight ejecutado (2026-11-01):** ya existen dos bases Firestore en `nam5`, `(default)` y `gestioncitas`, y varios servicios Cloud Run. **La captura posterior confirma que `(default)` contiene colecciones de Atlas DataGob: queda PROHIBIDO usarla para SmartRoute.** Revisar [hallazgos del preflight](GCP_PREFLIGHT_FINDINGS_2026-11-01.md).
 
 **Decisión de usuario:** reutilizar `proyectopersonal-480420` para SmartRoute AI. **Estado:** proyecto seleccionado y automatización definida en GitHub, **sin acceso de este asistente a GCP, ni recursos inspeccionados, creados o desplegados**. Repositorio `JuliusCordova/SmartRoute_AI`.
 
@@ -13,7 +13,7 @@ bash scripts/gcp-preflight.sh
 ```
 El script es **solo lectura**. Revisar las bases Firestore existentes y Cloud Run antes de aplicar nada.
 
-**Decisión de persistencia:** el SDK actual usa la base Firestore **`(default)`**. Antes de crearla, verificar si existe y si ya contiene datos de otros proyectos. No reutilizar una base existente con otras apps: las colecciones `orders`, `users` y `routes` podrían colisionar. La cuota gratis de Firestore solo cubre una base por proyecto; las bases adicionales o con ID distinto pueden facturarse y necesitar adaptación del SDK. Si la base `(default)` está ocupada, **DETENER** la activación: decidir explícitamente entre aislamiento en proyecto propio, base nombrada con costo e implementación `database=...`, o un nuevo diseño con prefijos de colecciones. No borrar ni migrar información existente por comodidad.
+**Decisión de persistencia:** el SDK se actualizó para exigir `FIRESTORE_DATABASE_ID` y rechazar las bases ajenas al proyecto SmartRoute; **no** usa `(default)` por defecto fuera del emulador. Antes de crearla, verificar si existe y si ya contiene datos de otros proyectos. No reutilizar una base existente con otras apps: las colecciones `orders`, `users` y `routes` podrían colisionar. La cuota gratis de Firestore solo cubre una base por proyecto; las bases adicionales o con ID distinto pueden facturarse y necesitar adaptación del SDK. Si la base `(default)` está ocupada, **DETENER** la activación: decidir explícitamente entre aislamiento en proyecto propio, base nombrada con costo e implementación `database=...`, o un nuevo diseño con prefijos de colecciones. No borrar ni migrar información existente por comodidad.
 
 **Presupuesto:** asignar alerta específica a SmartRoute si el sistema de facturación permite distinguir consumo por servicios/etiquetas; los presupuestos NO son un límite de gasto. Establecer cuotas y revisar facturación de Routes API, Gemini, Cloud Run, Cloud Build y Firestore. Nunca exponer la API públicamente para probarla.
 
@@ -23,6 +23,7 @@ El script es **solo lectura**. Revisar las bases Firestore existentes y Cloud Ru
 | `GCP_PROJECT_ID` | `proyectopersonal-480420` (fijo en workflow como guardrail) |
 | `GCP_REGION` | decidir según disponibilidad/costo; por definir |
 | `GCP_STAGING_ENABLED` | dejar ausente/false hasta completar pruebas del runbook |
+| `GCP_FIRESTORE_DATABASE_ID` | `smartroute` (nombre propuesto; base aún no creada, costo por uso pendiente de aprobación) |
 | `GCP_WIF_PROVIDER` | creado tras aprobar permisos IAM |
 | `GCP_DEPLOYER_SERVICE_ACCOUNT` | `smartroute-deployer@proyectopersonal-480420.iam.gserviceaccount.com` (propuesta) |
 | `GCP_RUNTIME_SERVICE_ACCOUNT` | `smartroute-runtime@proyectopersonal-480420.iam.gserviceaccount.com` (propuesta) |
@@ -31,7 +32,7 @@ El script es **solo lectura**. Revisar las bases Firestore existentes y Cloud Ru
 Las direcciones son **nombres propuestos**, no cuentas creadas. Toda creación y habilitación de APIs queda fuera del script de inventario.
 
 ## 2. Aprovisionamiento controlado (solo después de inventario y decisión de costos)
-1. Confirmar que `(default)` no existe o que está formalmente dedicada a SmartRoute. Si no existe, un administrador **puede** crear una base Firestore Standard Native mode en la ubicación aprobada mediante la consola (modo producción/restrictivo). La ubicación es difícil de cambiar y puede tener impacto en latencia/costo. No crear `smartroute` como base nombrada a la ligera.
+1. **La base `(default)` ya está ocupada por Atlas DataGob y no debe utilizarse.** El camino propuesto es una base nombrada **`smartroute`**, sujeta a aprobación de facturación y cuota. Configurar la ubicación compatible con la aplicación, preferentemente revisando `nam5` y región Cloud Run; verificar edición Standard y protección contra eliminación antes de crearla. No ejecutar comandos de creación hasta que el dueño autorice el costo.
 2. Vincular Firebase Authentication al proyecto existente sin cambiar otros proveedores/configuraciones usados por aplicaciones preexistentes; activar únicamente métodos necesarios para usuarios de prueba. Crear usuarios ficticios y perfiles `users/{uid}` administrativamente, con `role: OPERATOR` y `active: true`, sin tokens ni claves en Git.
 3. Habilitar solo APIs necesarias para Cloud Run/Cloud Build/Artifact Registry/IAM Credentials/STS/Firestore; ninguna de estas operaciones se ejecuta desde CI antes de esta autorización.
 4. Crear tres identidades distintas de servicio (deployer, runtime, smoke) y políticas mínimas; revisar el alcance de roles sobre este proyecto compartido.
