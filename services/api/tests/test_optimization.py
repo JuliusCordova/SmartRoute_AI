@@ -8,16 +8,16 @@ def test_ortools_improves_obviously_suboptimal_baseline():
     # depot 0, synthetic stops A/B/C; asymmetric matrix allowed.
     matrix = [
         [0, 1, 10, 10],
-        [1, 0, 1, 10],
-        [10, 10, 0, 1],
-        [1, 10, 10, 0],
+        [10, 0, 10, 1],
+        [1, 10, 0, 10],
+        [10, 10, 1, 0],
     ]
     data = EvaluationInput(order_ids=["A", "C", "B"], durations_seconds=matrix)
     result = evaluate_synthetic_route(data)
     assert result.data_origin == "synthetic"
     assert set(result.ordered_order_ids) == {"A", "B", "C"}
     assert len(result.ordered_order_ids) == 3
-    assert result.optimized_seconds <= result.baseline_seconds
+    assert result.optimized_seconds < result.baseline_seconds
     assert len(result.matrix_fingerprint) == 64
     assert "optimum" in result.warnings[0]
 
