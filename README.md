@@ -30,7 +30,7 @@ SmartRoute AI es un MVP académico de siete semanas para gestionar pedidos, segu
 
 ## Estado
 
-**Fase de especificación.** Los contratos, esquemas y criterios en el documento son propuestas de implementación, todavía no servicios desplegados.
+**Especificación y bootstrap de FastAPI:** /health y /ready definidos; aún no hay flujo de pedidos, aplicación Android ni servicios GCP desplegados verificados.
 
 ## Próximos artefactos
 
@@ -72,8 +72,15 @@ Este repositorio adopta **PA-SDD MVP** inspirado en [DevPattern](https://github.
 - [CI workflow](.github/workflows/ci.yml) · [controlled deploy script](scripts/deploy-gcp.sh) · [smoke test script](scripts/smoke-test.sh)
 - [SDD release gates](docs/RELEASE_CHECKLIST.md) · [Mermaid assisted-SDLC workflow](docs/diagrams/06-assisted-sdlc.md)
 
-**Status:** source scaffolding, not verified deployment. API health/readiness endpoints only; there is no implemented order CRUD, Cloud SQL connection, Flutter/React or ADK service yet. The build-time assisted agent workflow is not the product runtime architecture. Human approvals and actual CI/IAM must enforce deployments.
+**Status:** source scaffolding, not verified deployment. API health/readiness endpoints only; there is no implemented order CRUD, Firestore integration, Flutter/React or ADK service yet. The build-time assisted agent workflow is not the product runtime architecture. Human approvals and actual CI/IAM must enforce deployments.
 
 ## Almacenamiento vigente: Firestore Standard
 
 Para el piloto usamos **Firestore Standard** como única base operativa. [ADR-05-FS](docs/FIRESTORE_STANDARD_MVP.md) · [Colecciones](docs/FIRESTORE_COLLECTIONS.md) · [Diagrama Mermaid](docs/diagrams/07-firestore-standard.md). BigQuery y PostgreSQL son decisiones históricas, no se provisionarán. El objetivo del Capstone es software ejecutable, con pruebas de transacciones y acceso por FastAPI.
+
+## Plan de ejecución del Capstone (7 semanas)
+
+- **[Plan maestro de desarrollo](docs/PLAN_DESARROLLO_7_SEMANAS.md):** vertical slices, dependencias, entregables, roles por asignar, riesgos, costos, gates, validación académica y primera historia a implementar.
+- **[Backlog actualizado](specs/BACKLOG_7_WEEKS.md):** calendario relativo S1–S7 y Definition of Ready/Done.
+
+**Prioridad:** producto funcional desplegable con FastAPI + Firestore Standard + Flutter + React + OR-Tools; Gemini consultivo es P1. El estado actual es scaffold de API y especificación; no afirmar ejecución GCP, métricas reales ni funcionalidad P0 completada sin evidencia.
