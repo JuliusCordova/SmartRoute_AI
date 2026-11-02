@@ -1,0 +1,108 @@
+name: SmartRoute controlled manual staging deployment
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smartroute-staging-deployment
+  cancel-in-progress: false
+
+jobs:
+  manual-staging:
+    name: manual-staging-deploy
+    if: github.ref == 'refs/heads/main' && github.repository == 'JuliusCordova/SmartRoute_AI'
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check approved staging settings (auto deploy stays disabled)
+        env:
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          REGION: ${{ vars.GCP_REGION }}
+          FIRESTORE_DATABASE_ID: ${{ vars.GCP_FIRESTORE_DATABASE_ID }}
+          WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+          DEPLOYER: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+          RUNTIME: ${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}
+          SMOKE: ${{ vars.GCP_SMOKE_SERVICE_ACCOUNT }}
+          AUTO_STAGING: ${{ vars.GCP_STAGING_ENABLED }}
+        run: |
+          set -euo pipefail
+          test "$PROJECT_ID" = "proyectopersonal-480420"
+          test "$REGION" = "us-central1"
+          test "$FIRESTORE_DATABASE_ID" = "smartroute"
+          test "$WIF_PROVIDER" = "projects/913797829604/locations/global/workloadIdentityPools/smartroute-ci/providers/smartroute-main"
+          test "$DEPLOYER" = "smartroute-deployer@proyectopersonal-480420.iam.gserviceaccount.com"
+          test "$RUNTIME" = "smartroute-runtime@proyectopersonal-480420.iam.gserviceaccount.com"
+          test "$SMOKE" = "smartroute-smoke@proyectopersonal-480420.iam.gserviceaccount.com"
+          test "$AUTO_STAGING" = "false"
+          echo "PASS: staging configuration pinned; automatic deployment remains off"
+      - name: Authenticate deployer with WIF
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+      - uses: google-github-actions/setup-gcloud@v3
+      - name: Confirm existing SmartRoute-only destination
+        run: |
+          set -euo pipefail
+          gcloud artifacts repositories describe smartroute-staging --project=proyectopersonal-480420 --location=us-central1 --format='value(name)' >/dev/null
+          SA="$(gcloud run services describe smartroute-api-staging --project=proyectopersonal-480420 --region=us-central1 --format='value(spec.template.spec.serviceAccountName)')"
+          test "$SA" = "smartroute-runtime@proyectopersonal-480420.iam.gserviceaccount.com"
+      - name: Docker build and push immutable image
+        id: image
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          IMAGE="us-central1-docker.pkg.dev/proyectopersonal-480420/smartroute-staging/smartroute-api"
+          TAG="$IMAGE:$COMMIT_SHA"
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+          docker build --pull -t "$TAG" services/api
+          docker push "$TAG" | tee /tmp/smartroute-docker-push.log
+          DIGEST="$(awk '/digest: sha256:/ {for (i=1;i<=NF;i++) if ($i=="digest:") print $(i+1)}' /tmp/smartroute-docker-push.log | tail -n 1)"
+          [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "::error::Could not verify immutable digest"; exit 1; }
+          echo "uri=$IMAGE@$DIGEST" >> "$GITHUB_OUTPUT"
+      - name: Deploy digest to existing private staging service
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v3
+        with:
+          service: smartroute-api-staging
+          project_id: proyectopersonal-480420
+          region: us-central1
+          image: ${{ steps.image.outputs.uri }}
+          wait: true
+          flags: '--min-instances=0 --max-instances=2 --service-account=smartroute-runtime@proyectopersonal-480420.iam.gserviceaccount.com'
+          env_vars: |
+            APP_ENV=staging
+            FIREBASE_PROJECT_ID=proyectopersonal-480420
+            GOOGLE_CLOUD_PROJECT=proyectopersonal-480420
+            FIRESTORE_DATABASE_ID=smartroute
+      - name: Authenticate private smoke identity via WIF
+        id: smoke_auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SMOKE_SERVICE_ACCOUNT }}
+          token_format: id_token
+          id_token_audience: https://smartroute-api-staging-913797829604.us-central1.run.app
+          id_token_include_email: true
+      - name: Authenticated private smoke
+        env:
+          SERVICE_URL: https://smartroute-api-staging-913797829604.us-central1.run.app
+          ACCESS_TOKEN: ${{ steps.smoke_auth.outputs.id_token }}
+        run: bash scripts/smoke-test.sh
+      - name: Record outcome
+        if: success()
+        run: |
+          echo "## SmartRoute manual staging deployment PASS" >> "$GITHUB_STEP_SUMMARY"
+          echo "Staging remains private, auto-deployment disabled." >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "Image: ${{ steps.image.outputs.uri }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Private HTTP /health + /ready PASS (process-only; Firestore/Firebase not tested)." >> "$GITHUB_STEP_SUMMARY"
