@@ -86,6 +86,16 @@ jobs:
           for var in PROJECT_ID REGION PROVIDER DEPLOYER RUNTIME SMOKE; do
             if [ -z "${!var}" ]; then echo "::error::Missing staging configuration: $var"; exit 1; fi
           done
+          if [ "$PROJECT_ID" != "proyectopersonal-480420" ]; then
+            echo "::error::Unexpected GCP project. SmartRoute staging is pinned to proyectopersonal-480420."
+            exit 1
+          fi
+          for account in "$DEPLOYER" "$RUNTIME" "$SMOKE"; do
+            case "$account" in
+              *"@proyectopersonal-480420.iam.gserviceaccount.com") ;;
+              *) echo "::error::Service account must belong to approved GCP project"; exit 1 ;;
+            esac
+          done
       - name: Authenticate with WIF (no JSON keys)
         uses: google-github-actions/auth@v3
         with:
