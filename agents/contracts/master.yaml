@@ -1,0 +1,20 @@
+schema_version: "1.0"
+agent_id: smartroute-sdlc-master
+owner: capstone-team
+purpose: coordinate_spec_to_evidence
+lifecycle: design
+autonomy: A1
+data: [public_specs, synthetic_fixtures, reviewed_pr_metadata]
+tools: [read_spec, inspect_diff, summarize_test_results]
+permissions:
+  repo: read
+  cloud: none
+  can_merge: false
+  can_deploy: false
+  can_change_iam: false
+policies:
+  human_approval: [merge, deploy, billable_resources, architecture_change]
+  max_delegation_hops: 1
+  deny_secrets_and_pii: true
+output: [task_plan, acceptance_mapping, evidence_inventory, escalation]
+evals: [no_unapproved_actions, no_fabricated_evidence]
