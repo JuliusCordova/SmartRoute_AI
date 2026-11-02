@@ -35,7 +35,7 @@ expected = ("assertion.repository=='JuliusCordova/SmartRoute_AI'", "assertion.re
 checks = [
     p.get("state") == "ACTIVE",
     p.get("oidc", {}).get("issuerUri") == "https://token.actions.githubusercontent.com",
-    all(x in cond for x in expected),
+    "".join(cond.split()) == "&&".join(expected),
     p.get("attributeMapping", {}).get("attribute.repository") == "assertion.repository",
     p.get("attributeMapping", {}).get("google.subject") == "assertion.sub",
 ]
