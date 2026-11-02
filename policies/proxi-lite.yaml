@@ -1,0 +1,20 @@
+version: "1.0"
+mode: design_only
+description: "SDLC policy declaration; enforcement must be implemented in GitHub permissions, workflow approvals and GCP IAM."
+rules:
+  allow_read_specs: true
+  allow_draft_code: true
+  deny_autonomous_merge: true
+  deny_autonomous_deployment: true
+  deny_production_write: true
+  require_review_for_cloud_spend: true
+  require_review_for_iam_changes: true
+  require_tests_before_promotion: true
+  prohibit_personal_data_in_prompts: true
+  prohibit_secrets_in_repository: true
+  runtime_ai_autonomy: A1
+  runtime_ai_write_tools: []
+evidence:
+  require_commit_sha: true
+  require_test_output: true
+  require_smoke_url_for_deployment_claim: true

@@ -1,0 +1,31 @@
+schema_version: "1.0"
+specialists:
+  - id: sdd
+    purpose: convert_story_to_testable_requirements
+    allowed_outputs: [spec_diff, acceptance_scenarios]
+    forbidden: [production_changes]
+  - id: architect
+    purpose: justify_minimum_architecture
+    allowed_outputs: [adr, component_diagrams, port_contracts]
+    forbidden: [unapproved_new_cloud_services]
+  - id: backend
+    purpose: implement_fastapi_and_postgres_slices
+    allowed_outputs: [source_diff, unit_tests, migrations]
+    forbidden: [real_user_data, direct_production_write]
+  - id: frontend
+    purpose: implement_flutter_and_react_slices
+    allowed_outputs: [source_diff, ui_tests]
+    forbidden: [embedding_secrets]
+  - id: qa
+    purpose: independently_verify_acceptance
+    allowed_outputs: [test_results, regression_report, security_findings]
+    forbidden: [self_approval]
+  - id: devops
+    purpose: prepare_reproducible_ci_and_cloud_run_deploy
+    allowed_outputs: [dockerfile, workflow, terraform, smoke_report]
+    forbidden: [unapproved_deploy, unapproved_spend, credential_escalation]
+common:
+  autonomy: A1
+  requires_human_approval: [merge, cloud_deploy, production_config]
+  no_secret_access: true
+  output_must_contain: [story_ids, test_ids, evidence]
