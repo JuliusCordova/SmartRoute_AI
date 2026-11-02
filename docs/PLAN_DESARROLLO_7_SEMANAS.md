@@ -80,3 +80,7 @@ S1 define baseline, 5 evidencias y técnicas Pareto/Ishikawa/5 porqués; S2 comp
 
 ## Primer incremento inmediato (Ready → Development)
 **US-003 / US-004:** implementar `POST /api/v1/orders` y `GET /api/v1/orders` con repositorio Firestore, validación de lat/lng, datos sintéticos, rol OPERATOR, pruebas unitarias y de integración con emulador, y medición de lecturas. Precondiciones: decidir emisor OIDC, variables `GCP_PROJECT` y `FIRESTORE_EMULATOR_HOST`, convención de estados y data_origin. Evidencia de aceptación AC-001/002. No crear recursos GCP sin aprobación.
+
+## Registro de inicio de ejecución — incremento US-003 / US-004
+
+Se creó la primera rama funcional de backend `feat/US-003-004-firestore-orders-api`: modelos/validación, autenticación Firebase con roles en Firestore, adaptador de pedidos, endpoints POST/GET, pruebas unitarias y contrato de paginación actualizado. **Estado: IMPLEMENTED (código) + UNIT TESTED local 5/5**; integración con Firestore Emulator y ejecución de GitHub Actions pendientes de confirmación. No equivale a S2 completada ni a DEPLOYED. Evidencias de CI y cloud requieren su propio reporte reproducible.
