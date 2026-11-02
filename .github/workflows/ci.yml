@@ -55,7 +55,7 @@ jobs:
       - run: python -m pip install -r services/api/requirements.txt
       - run: npm install -g firebase-tools
       - name: Firestore emulator integration (no GCP billing)
-        run: firebase emulators:exec --only firestore --project demo-smartroute 'bash -c "cd services/api && FIRESTORE_EMULATOR_REQUIRED=1 python -m pytest -q tests/test_firestore_integration.py"'
+        run: firebase emulators:exec --only firestore --project demo-smartroute 'bash -c "cd services/api && FIRESTORE_EMULATOR_REQUIRED=1 python -m pytest -q tests/test_firestore_integration.py tests/test_route_transaction.py"'
 
   deploy-staging:
     name: deploy-staging
