@@ -27,12 +27,12 @@ def current_user(credentials: HTTPAuthorizationCredentials | None = Security(bea
         raise HTTPException(status_code=401, detail="Bearer token required", headers={"WWW-Authenticate": "Bearer"})
     try:
         from firebase_admin import auth
-        from .firestore_repo import client
+        from .firestore_config import firestore_client
         decoded = auth.verify_id_token(credentials.credentials, app=_firebase_app(), check_revoked=False)
         uid = decoded.get("uid")
         if not uid or not isinstance(uid, str):
             raise ValueError("Firebase token missing UID")
-        profile = client().collection("users").document(uid).get()
+        profile = firestore_client().collection("users").document(uid).get()
         if not profile.exists:
             raise HTTPException(status_code=403, detail="User not registered")
         data = profile.to_dict() or {}
