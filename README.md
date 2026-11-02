@@ -84,3 +84,7 @@ Para el piloto usamos **Firestore Standard** como única base operativa. [ADR-05
 - **[Backlog actualizado](specs/BACKLOG_7_WEEKS.md):** calendario relativo S1–S7 y Definition of Ready/Done.
 
 **Prioridad:** producto funcional desplegable con FastAPI + Firestore Standard + Flutter + React + OR-Tools; Gemini consultivo es P1. El estado actual es scaffold de API y especificación; no afirmar ejecución GCP, métricas reales ni funcionalidad P0 completada sin evidencia.
+
+## Inicio de construcción de software — US-003/US-004
+
+Primera vertical versionada: [FastAPI orders API](services/api/README.md), [modelos de pedidos](services/api/app/orders.py), [adaptador Firestore](services/api/app/firestore_repo.py), [autenticación y roles](services/api/app/auth.py), [tests](services/api/tests/test_orders.py). Endpoints `POST/GET /api/v1/orders`. Existen pruebas locales con dobles sintéticos; **pendiente** validación de SDK Firebase/Firestore contra emulador, ejecución de CI y despliegue GCP. Nunca afirmar que los pedidos ya persisten en GCP.
