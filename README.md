@@ -113,3 +113,7 @@ Se seleccionó **`proyectopersonal-480420`** para el piloto, sujeto a inventario
 ### Firestore de SmartRoute (bloqueo de seguridad)
 
 El proyecto GCP compartido contiene datos de Atlas DataGob en Firestore `(default)`; no debe usarse. El backend exige `FIRESTORE_DATABASE_ID=smartroute` fuera del emulador, y GitHub Actions valida el nombre de base en staging. **Esto no crea la base ni implica aprobación de los cargos por lecturas/escrituras/almacenamiento.** Consultar [evidencia](docs/GCP_PREFLIGHT_FINDINGS_2026-11-01.md).
+
+## Firestore creada y gate IAM
+
+El usuario creó y verificó la base **`smartroute` Standard Native** con protección contra eliminación en `proyectopersonal-480420` (2026-11-02 UTC). La infraestructura IAM/WIF y Cloud Run sigue pendiente. Próximo paso seguro: ejecutar [preflight IAM de solo lectura](scripts/gcp-iam-preflight.sh) y revisar [evidencia y diseño de permisos](docs/GCP_FIRESTORE_CREATED_AND_IAM_NEXT.md). No habilitar `GCP_STAGING_ENABLED` sin revisión de privilegios y facturación.
