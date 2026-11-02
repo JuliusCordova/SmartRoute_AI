@@ -64,3 +64,7 @@ Fuentes:
 - https://github.com/google-github-actions/auth
 - https://github.com/google-github-actions/deploy-cloudrun
 - https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches
+
+## Elección actual de proyecto cloud
+
+El usuario seleccionó `proyectopersonal-480420`. Leer [runbook de proyecto compartido](GCP_EXISTING_PROJECT_RUNBOOK.md) y ejecutar [preflight de solo lectura](../scripts/gcp-preflight.sh) antes de habilitar `GCP_STAGING_ENABLED=true`. El workflow verifica explícitamente el project ID y cuentas de servicio de ese proyecto. Si Firestore `(default)` ya tiene datos no relacionados, detener la habilitación; no mezclar colecciones ni crear bases facturables sin decisión expresa.
