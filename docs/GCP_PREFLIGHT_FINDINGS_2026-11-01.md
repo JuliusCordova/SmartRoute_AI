@@ -34,3 +34,8 @@ Si hay dudas sobre la función actual de `(default)`, detener el despliegue de S
 4. Activar GitHub staging cuando existan permisos y checks requeridos. Hasta entonces `GCP_STAGING_ENABLED=false`.
 
 **No se ha desplegado Cloud Run, creado cuentas ni configurado Firestore.**
+
+## Evidencia visual adicional — Firestore default OCUPADA
+Captura del usuario muestra múltiples colecciones de Atlas DataGob en `(default)`, por ejemplo `atlas_agent_deployment_bindings_f56_preview`, `atlas_agent_deployments_f56_preview`, `atlas_agent_findings_f56_preview`, `atlas_agent_governance_f56_preview`, `atlas_demands` y otras colecciones preview. No es una base vacía; **queda descartada para SmartRoute AI**.
+
+Se propone **base nombrada exclusiva `smartroute`**, NO creada aún. Requiere costo por consumo (sin nuevo cupo gratuito) y aprobación explícita antes de provisionarla. El backend y GitHub Actions se preparan para selección explícita y rechazan `(default)`/`gestioncitas` en el proyecto compartido. Si no se aprueba ese gasto, alternativa: proyecto GCP separado con base gratuita, manteniendo el código preparado.
