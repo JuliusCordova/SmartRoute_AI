@@ -63,3 +63,13 @@ Este repositorio adopta **PA-SDD MVP** inspirado en [DevPattern](https://github.
 - [Alineamiento informe Práctica de Campo I](docs/CAPSTONE_FIELD_REPORT_ALIGNMENT.md)
 
 **Objetivos académicos ratificados:** OE1 -20 % tiempo por entrega (hipótesis), OE2 reducir km/ruta, OE3 mejorar puntualidad. **El informe preliminar contiene simulación y no demuestra resultados reales.** LLM se despliega conceptualmente vía Vertex AI Gemini como componente read-only; OR-Tools no es ML. Modelo predictivo de ETA en Vertex AI queda fuera del MVP hasta contar con datos observados.
+
+
+## Assisted Agentic SDLC — executable bootstrap
+
+- [Instructions for development agents](AGENTS.md) · [roles/contracts](agents/README.md) · [PROXI Lite policy declaration](policies/proxi-lite.yaml)
+- [FastAPI health slice](services/api/app/main.py) · [unit tests](services/api/tests/test_health.py) · [Dockerfile](services/api/Dockerfile)
+- [CI workflow](.github/workflows/ci.yml) · [controlled deploy script](scripts/deploy-gcp.sh) · [smoke test script](scripts/smoke-test.sh)
+- [SDD release gates](docs/RELEASE_CHECKLIST.md) · [Mermaid assisted-SDLC workflow](docs/diagrams/06-assisted-sdlc.md)
+
+**Status:** source scaffolding, not verified deployment. API health/readiness endpoints only; there is no implemented order CRUD, Cloud SQL connection, Flutter/React or ADK service yet. The build-time assisted agent workflow is not the product runtime architecture. Human approvals and actual CI/IAM must enforce deployments.
