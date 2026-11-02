@@ -44,19 +44,19 @@ fi
 gcloud artifacts repositories add-iam-policy-binding "$REPO" \
   --project="$PROJECT" --location="$REGION" \
   --member="serviceAccount:$DEPLOYER" --role=roles/artifactregistry.writer --quiet \
-  --format='value()'
+  --format=json >/dev/null
 gcloud run services add-iam-policy-binding "$SERVICE" \
   --project="$PROJECT" --region="$REGION" \
   --member="serviceAccount:$DEPLOYER" --role=roles/run.developer --quiet \
-  --format='value()'
+  --format=json >/dev/null
 gcloud iam service-accounts add-iam-policy-binding "$RUNTIME" \
   --project="$PROJECT" --member="serviceAccount:$DEPLOYER" \
-  --role=roles/iam.serviceAccountUser --quiet --format='value()'
+  --role=roles/iam.serviceAccountUser --quiet --format=json >/dev/null
 gcloud run services add-iam-policy-binding "$SERVICE" \
   --project="$PROJECT" --region="$REGION" \
   --member="serviceAccount:$SMOKE" --role=roles/run.invoker --quiet \
-  --format='value()'
+  --format=json >/dev/null
 gcloud iam service-accounts add-iam-policy-binding "$SMOKE" \
   --project="$PROJECT" --member="serviceAccount:$SMOKE" \
-  --role=roles/iam.serviceAccountTokenCreator --quiet --format='value()'
+  --role=roles/iam.serviceAccountTokenCreator --quiet --format=json >/dev/null
 echo "IAM STAGE 2 COMPLETE; GitHub GCP_STAGING_ENABLED still remains disabled."
