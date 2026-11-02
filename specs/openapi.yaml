@@ -195,22 +195,35 @@ components:
       properties:
         id: { type: string, format: uuid }
         role: { type: string, enum: [OPERATOR, DRIVER] }
-    OrderCreate:
+    Geo:
       type: object
-      required: [address_label, latitude, longitude]
+      required: [latitude, longitude]
+      additionalProperties: false
       properties:
-        address_label: { type: string, minLength: 3 }
         latitude: { type: number, minimum: -90, maximum: 90 }
         longitude: { type: number, minimum: -180, maximum: 180 }
+    OrderCreate:
+      type: object
+      required: [address_label, geo]
+      additionalProperties: false
+      properties:
+        address_label: { type: string, minLength: 3, maxLength: 200 }
+        geo: { $ref: '#/components/schemas/Geo' }
         due_at: { type: string, format: date-time, nullable: true }
     Order:
       allOf:
         - { $ref: '#/components/schemas/OrderCreate' }
         - type: object
-          required: [id, status]
+          required: [id, status, created_by, created_at, updated_at, version, data_origin]
           properties:
             id: { type: string, format: uuid }
             status: { type: string, enum: [PENDING, ASSIGNED, IN_TRANSIT, DELIVERED, FAILED] }
+            created_by: { type: string }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+            version: { type: integer, minimum: 1 }
+            data_origin: { type: string, enum: [synthetic] }
+            route_id: { type: string, nullable: true }
     RouteCreate:
       type: object
       required: [driver_id, depot_latitude, depot_longitude]
