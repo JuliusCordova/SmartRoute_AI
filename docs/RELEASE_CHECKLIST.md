@@ -20,7 +20,7 @@
 6. Record commit, revision/digest, URL, test output, cost settings and rollback revision in evidence log.
 
 ## Blockers for complete MVP
-- Implement auth, order CRUD, BigQuery dataset/table DDL and concurrency tests, idempotent events, Flutter, React, Maps and OR-Tools adapters.
+- Implement auth, order CRUD, Firestore Standard database, IAM, emulator transactions and conflict tests, idempotent events, Flutter, React, Maps and OR-Tools adapters.
 - Add database integration tests, contract validation, feature acceptance runner, IAM least privilege and CI security scan.
 - Deploy separately governed runtime Gemini/ADK only after A1 contract, guardrails and golden evals.
 - Configure budget/quota alerting and retention policy before real GPS.
