@@ -127,7 +127,7 @@ jobs:
           gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
           docker build --pull -t "$TAG" services/api
           docker push "$TAG" | tee /tmp/smartroute-docker-push.log
-          DIGEST="$(sed -nE 's/.*digest: (sha256:[a-f0-9]{64}).*/\\1/p' /tmp/smartroute-docker-push.log | tail -n 1)"
+          DIGEST="$(awk '/digest: sha256:/ {for (i=1;i<=NF;i++) if ($i=="digest:") {print $(i+1)}}' /tmp/smartroute-docker-push.log | tail -n 1)"
           if [[ ! "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
             echo "::error::No immutable image digest was returned by Docker push"
             exit 1
