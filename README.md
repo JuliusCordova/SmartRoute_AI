@@ -109,3 +109,7 @@ Se añade [evaluador OR-Tools](services/api/app/optimization.py) con [pruebas](s
 ## Entorno staging autorizado: proyecto GCP existente
 
 Se seleccionó **`proyectopersonal-480420`** para el piloto, sujeto a inventario de solo lectura y aprobación de configuración IAM/costos. Antes de crear Firestore, ejecutar [preflight GCP](scripts/gcp-preflight.sh) en Cloud Shell y revisar el [runbook de configuración compartida](docs/GCP_EXISTING_PROJECT_RUNBOOK.md). El pipeline de staging valida que la identidad y el proyecto coincidan con la elección aprobada. **No significa que Firestore/Cloud Run ya existan ni que se haya consumido GCP.**
+
+### Firestore de SmartRoute (bloqueo de seguridad)
+
+El proyecto GCP compartido contiene datos de Atlas DataGob en Firestore `(default)`; no debe usarse. El backend exige `FIRESTORE_DATABASE_ID=smartroute` fuera del emulador, y GitHub Actions valida el nombre de base en staging. **Esto no crea la base ni implica aprobación de los cargos por lecturas/escrituras/almacenamiento.** Consultar [evidencia](docs/GCP_PREFLIGHT_FINDINGS_2026-11-01.md).

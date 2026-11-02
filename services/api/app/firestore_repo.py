@@ -1,16 +1,11 @@
 """Firestore Standard adapter; ADC and bounded reads, no cloud at import time."""
-import os
-from functools import lru_cache
 from .orders import Order, OrderPage
+from .firestore_config import firestore_client
 
-@lru_cache(maxsize=1)
-def client():
-    from google.cloud import firestore
-    return firestore.Client(project=os.environ.get("GOOGLE_CLOUD_PROJECT"))
 
 class FirestoreOrderRepository:
     def __init__(self, db=None):
-        self.db = db if db is not None else client()
+        self.db = db if db is not None else firestore_client()
 
     def create(self, order: Order) -> None:
         self.db.collection("orders").document(order.id).create(order.model_dump(mode="python"))

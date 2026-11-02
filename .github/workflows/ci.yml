@@ -82,12 +82,17 @@ jobs:
           DEPLOYER: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
           RUNTIME: ${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}
           SMOKE: ${{ vars.GCP_SMOKE_SERVICE_ACCOUNT }}
+          FIRESTORE_DATABASE_ID: ${{ vars.GCP_FIRESTORE_DATABASE_ID }}
         run: |
-          for var in PROJECT_ID REGION PROVIDER DEPLOYER RUNTIME SMOKE; do
+          for var in PROJECT_ID REGION PROVIDER DEPLOYER RUNTIME SMOKE FIRESTORE_DATABASE_ID; do
             if [ -z "${!var}" ]; then echo "::error::Missing staging configuration: $var"; exit 1; fi
           done
           if [ "$PROJECT_ID" != "proyectopersonal-480420" ]; then
             echo "::error::Unexpected GCP project. SmartRoute staging is pinned to proyectopersonal-480420."
+            exit 1
+          fi
+          if [ "$FIRESTORE_DATABASE_ID" != "smartroute" ]; then
+            echo "::error::Staging must use dedicated named Firestore database smartroute"
             exit 1
           fi
           for account in "$DEPLOYER" "$RUNTIME" "$SMOKE"; do
@@ -114,6 +119,8 @@ jobs:
           env_vars: |
             APP_ENV=staging
             FIREBASE_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}
+            GOOGLE_CLOUD_PROJECT=${{ vars.GCP_PROJECT_ID }}
+            FIRESTORE_DATABASE_ID=${{ vars.GCP_FIRESTORE_DATABASE_ID }}
       - name: Generate audience-bound ID token for private staging
         id: smoke_auth
         uses: google-github-actions/auth@v3
