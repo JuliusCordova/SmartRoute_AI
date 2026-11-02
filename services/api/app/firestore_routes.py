@@ -1,11 +1,11 @@
 """Route creation and atomic order assignment using Firestore server transactions."""
-import os
 from google.cloud import firestore
 from .routes import AssignmentConflict, RecordMissing, Route
+from .firestore_config import firestore_client
 
 class FirestoreRouteRepository:
     def __init__(self, db=None):
-        self.db = db if db is not None else firestore.Client(project=os.getenv("GOOGLE_CLOUD_PROJECT"))
+        self.db = db if db is not None else firestore_client()
 
     def create(self, route: Route) -> None:
         driver = self.db.collection("drivers").document(route.driver_id).get()
