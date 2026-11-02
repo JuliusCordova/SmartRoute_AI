@@ -1,5 +1,5 @@
-# ADR-05-BQ: almacenamiento BigQuery para piloto académico
-**Decisión (01-nov-2026):** sustituir PostgreSQL/Cloud SQL por BigQuery en el MVP universitario SmartRoute AI, porque se esperan datos sintéticos, pocas sesiones y baja frecuencia de cambios. Esta decisión NO certifica que BigQuery sea mejor para logística productiva.
+# ADR-05-BQ — HISTÓRICO / SUPERADO por Firestore Standard
+**Decisión histórica (01-nov-2026), NO vigente.** Ver [ADR-05-FS](FIRESTORE_STANDARD_MVP.md). **Propuesta anterior:** sustituir PostgreSQL/Cloud SQL por BigQuery en el MVP universitario SmartRoute AI, porque se esperan datos sintéticos, pocas sesiones y baja frecuencia de cambios. Esta decisión NO certifica que BigQuery sea mejor para logística productiva.
 
 ## Evaluación
 | Factor | BigQuery piloto | Cloud SQL PostgreSQL | Riesgo |

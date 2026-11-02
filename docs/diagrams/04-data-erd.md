@@ -1,23 +1,22 @@
-# Modelo lógico adaptado a BigQuery (piloto, no ERD transaccional)
+# Modelo lógico — Firestore Standard (documentos, no tablas)
 ```mermaid
-erDiagram
- APP_USERS ||--o| DRIVERS : "logical_user_id"
- APP_USERS ||--o{ DELIVERY_ORDERS : "created_by"
- DRIVERS ||--o{ DELIVERY_ROUTES : "driver_id"
- DELIVERY_ROUTES ||--o{ ROUTE_STOPS : "route_id"
- DELIVERY_ORDERS ||--o{ ROUTE_STOPS : "order_id"
- DELIVERY_ORDERS ||--o{ ORDER_STATUS_EVENTS : "order_id"
- DRIVERS ||--o{ DRIVER_LOCATIONS : "driver_id"
- DELIVERY_ROUTES ||--o{ ROUTE_EVALUATIONS : "route_id"
- DELIVERY_ORDERS ||--o{ INCIDENTS : "order_id"
- APP_USERS { string id string email string role bool active }
- DRIVERS { string id string user_id bool gps_consent }
- DELIVERY_ORDERS { string id string status float latitude float longitude int version }
- DELIVERY_ROUTES { string id string driver_id string status int version }
- ROUTE_STOPS { string id string route_id string order_id int baseline_sequence int optimized_sequence }
- ORDER_STATUS_EVENTS { string event_id string order_id string idempotency_key datetime received_at }
- DRIVER_LOCATIONS { string location_id string driver_id string route_id datetime received_at }
- ROUTE_EVALUATIONS { string id string route_id string data_origin int baseline_seconds int optimized_seconds }
- INCIDENTS { string id string order_id string incident_type }
+flowchart TD
+  U["users/{uid} · rol / active"]
+  D["drivers/{driverId} · user_id / gps_consent"]
+  O["orders/{orderId} · status / route_id / geo"]
+  R["routes/{routeId} · driver_id / status / sequence"]
+  S["routes/{routeId}/stops/{orderId}"]
+  E["order_events/{actorId}:{key} · idempotencia"]
+  GPS["driver_locations/{driverId} · último GPS"]
+  RE["route_evaluations/{id}"]
+  IN["incidents/{id}"]
+  U --> D
+  D --> R
+  R --> S
+  O --> S
+  O --> E
+  D --> GPS
+  R --> RE
+  O --> IN
 ```
-**Atención:** las relaciones representan referencias lógicas, NO claves foráneas impuestas por BigQuery. Los controles de asignación, estado e idempotencia pertenecen a FastAPI y deben pasar pruebas. DDL vigente: [bigquery_schema.sql](../../db/bigquery_schema.sql). PostgreSQL histórico: [schema.sql](../../db/schema.sql), no ejecutarlo en GCP.
+**Referencias lógicas gestionadas por FastAPI**. Firestore no impone claves foráneas ni cascadas relacionales. Las transacciones coordinan asignaciones, eventos y estados. Ver [colecciones](../FIRESTORE_COLLECTIONS.md) y [ADR vigente](../FIRESTORE_STANDARD_MVP.md).

@@ -53,7 +53,7 @@ RF-01 autenticación RBAC; RF-02 coordenadas validadas; RF-03 consulta pedidos; 
 - BR-12 registrar 'observed' vs 'synthetic' vs 'estimated' en mediciones, jamás agregarlos sin estrato.
 
 ## 7. Integraciones / errores
-Maps Routes API (computeRouteMatrix/computeRoutes) con quotas, reintentos limitados y validación de elementos; Vertex AI Gemini con salida estructurada, timeout y sin PII; BigQuery para piloto académico de baja concurrencia (sin garantías OLTP; consistencia y reintentos en FastAPI); Secret Manager/IAM; Cloud Logging y Monitoring. Si matriz incompleta/inaccesible →422 ROUTE_INFEASIBLE; Maps caído →503 sin inventar ruta; sin permiso →403; datos inválidos →422; asignación conflictiva →409; cuota →429/503 con mensaje y correlación.
+Maps Routes API (computeRouteMatrix/computeRoutes) con quotas, reintentos limitados y validación de elementos; Vertex AI Gemini con salida estructurada, timeout y sin PII; Firestore Standard para piloto académico (transacciones documentales, IAM y RBAC servidor); Secret Manager/IAM; Cloud Logging y Monitoring. Si matriz incompleta/inaccesible →422 ROUTE_INFEASIBLE; Maps caído →503 sin inventar ruta; sin permiso →403; datos inválidos →422; asignación conflictiva →409; cuota →429/503 con mensaje y correlación.
 
 ## 8. Pruebas y métricas
 Ver [tests/acceptance.feature](../tests/acceptance.feature), [evals/README.md](../evals/README.md), [docs/SDD_TRACEABILITY.md](../docs/SDD_TRACEABILITY.md). KPI OE1 = (Tbase - Tpiloto)/Tbase ×100 con tiempos **observados** comparables; OE2 km GPS/ruta; OE3 entregas dentro de ventana/entregas evaluables. Publicar n, origen, ventana, exclusiones y dispersión.
@@ -61,6 +61,6 @@ Ver [tests/acceptance.feature](../tests/acceptance.feature), [evals/README.md](.
 ## 9. Quality gate / estado
 G1 problema y P0 aprobados; G2 contratos/ADR/UX revisados; G3–G6 tests y demos parciales; G7 informe, piloto etiquetado, resultados y veredicto. Un archivo presente en el repositorio NO significa funcionalidad desplegada. No promover sin evidencia de ejecución.
 
-## ADR-05-BQ: enmienda de persistencia del piloto
+## ADR-05-FS: persistencia vigente
 
-La especificación de persistencia vigente es [BigQuery para piloto académico](../docs/BIGQUERY_PILOT_DECISION.md), con esquema [BigQuery](../db/bigquery_schema.sql). El PostgreSQL descrito en versiones anteriores es una decisión histórica. AC-003 (asignación duplicada), AC-016 (idempotencia) y RNF de latencia deben validarse contra BigQuery real antes de marcarse completos. No prometer exactly-once sin control transaccional externo.
+Se usa [Firestore Standard](../docs/FIRESTORE_STANDARD_MVP.md), con [colecciones](../docs/FIRESTORE_COLLECTIONS.md) y transacciones para AC-003 y AC-016. BigQuery y PostgreSQL son decisiones históricas. Las pruebas deben ejecutarse antes de declararlas cumplidas.

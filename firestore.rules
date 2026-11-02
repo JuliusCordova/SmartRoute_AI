@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // All access to SmartRoute pilot data goes through authenticated FastAPI.
+    // Server SDK uses Google Cloud IAM and BYPASSES these rules.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
