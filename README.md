@@ -15,7 +15,7 @@ SmartRoute AI es un MVP académico de siete semanas para gestionar pedidos, segu
 | Aplicación móvil | Android con Flutter |
 | Dashboard | React |
 | Backend | Python / FastAPI en Google Cloud Run |
-| Datos | PostgreSQL |
+| Datos | Google BigQuery (piloto de bajo volumen; consistencia gestionada por la API) |
 | Mapas y matriz de viaje | Google Maps Platform |
 | Optimización de secuencia | Google OR-Tools |
 | IA consultiva | Gemini (sin autorización para modificar operaciones) |
@@ -34,7 +34,7 @@ SmartRoute AI es un MVP académico de siete semanas para gestionar pedidos, segu
 
 ## Próximos artefactos
 
-`specs/openapi.yaml`, `db/schema.sql`, pruebas de aceptación, estructura inicial de aplicaciones, CI/CD y un Business Case cuantificado.
+`specs/openapi.yaml`, `db/bigquery_schema.sql`, pruebas de aceptación, estructura inicial de aplicaciones, CI/CD y un Business Case cuantificado.
 
 ## Cumplimiento académico UPN Capstone 2026-2
 
