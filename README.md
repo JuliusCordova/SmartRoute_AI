@@ -88,3 +88,12 @@ Para el piloto usamos **Firestore Standard** como única base operativa. [ADR-05
 ## Inicio de construcción de software — US-003/US-004
 
 Primera vertical versionada: [FastAPI orders API](services/api/README.md), [modelos de pedidos](services/api/app/orders.py), [adaptador Firestore](services/api/app/firestore_repo.py), [autenticación y roles](services/api/app/auth.py), [tests](services/api/tests/test_orders.py). Endpoints `POST/GET /api/v1/orders`. Existen pruebas locales con dobles sintéticos; **pendiente** validación de SDK Firebase/Firestore contra emulador, ejecución de CI y despliegue GCP. Nunca afirmar que los pedidos ya persisten en GCP.
+
+## SDLC Fast Lane (desarrollo asistido con integración continua)
+
+- [Flujo de automatización y configuración de GCP](docs/SDLC_FAST_LANE.md).
+- [Instrucciones para GitHub Copilot coding agent](.github/copilot-instructions.md): aplicar SPEC, tests y políticas en cada issue.
+- [Ejecución de GitHub Actions](https://github.com/JuliusCordova/SmartRoute_AI/actions): unit, Firestore Emulator, Docker; staging condicional al merge y WIF.
+- Siguientes issues: [autenticación y emulator #7](https://github.com/JuliusCordova/SmartRoute_AI/issues/7), [asignación transaccional #8](https://github.com/JuliusCordova/SmartRoute_AI/issues/8), [staging seguro #9](https://github.com/JuliusCordova/SmartRoute_AI/issues/9).
+
+**La automatización de staging requiere configurar variables WIF/IAM, un entorno GitHub staging y permisos GCP mínimos.** No hay despliegue productivo ni backend accesible por Internet generado automáticamente.
