@@ -108,8 +108,8 @@ async def proxy(path: str, request: Request):
         # Explicit header allowlist. No forwarding of arbitrary headers, cookies,
         # Host or caller-controlled IAM Authorization.
         headers = {
-            "Authorization": "Bearer " + iam_token,
-            "X-SmartRoute-Firebase-Token": firebase_token,
+            "X-Serverless-Authorization": "Bearer " + iam_token,
+            "Authorization": "Bearer " + firebase_token,
             "Content-Type": "application/json",
         }
         async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
