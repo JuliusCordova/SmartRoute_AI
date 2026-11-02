@@ -1,3 +1,5 @@
+-- LEGACY / SUPERSEDED: PostgreSQL design from SmartRoute v1. DO NOT DEPLOY for academic BigQuery pilot.
+-- Active DDL: db/bigquery_schema.sql; design ADR: docs/BIGQUERY_PILOT_DECISION.md.
 -- SmartRoute AI baseline PostgreSQL design, NOT applied migration.
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE TABLE app_user (
