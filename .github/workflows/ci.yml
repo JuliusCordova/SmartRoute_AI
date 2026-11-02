@@ -33,7 +33,7 @@ jobs:
       - name: Unit tests
         run: python -m pytest -q
       - name: Validate shell smoke script
-        run: bash -n ../../scripts/smoke-test.sh ../../scripts/gcp-bootstrap-smartroute-identities.sh ../../scripts/gcp-bind-smartroute-iam.sh ../../scripts/gcp-verify-smartroute-iam.sh ../../scripts/gcp-cloudrun-readiness.sh ../../scripts/gcp-bootstrap-staging-service.sh ../../scripts/gcp-recover-staging-push.sh ../../scripts/gcp-verify-staging-http.sh ../../scripts/gcp-bind-staging-deploy-iam.sh ../../scripts/gcp-verify-staging-deploy-iam.sh
+        run: bash -n ../../scripts/smoke-test.sh ../../scripts/gcp-bootstrap-smartroute-identities.sh ../../scripts/gcp-bind-smartroute-iam.sh ../../scripts/gcp-verify-smartroute-iam.sh ../../scripts/gcp-cloudrun-readiness.sh ../../scripts/gcp-bootstrap-staging-service.sh ../../scripts/gcp-recover-staging-push.sh ../../scripts/gcp-verify-staging-http.sh ../../scripts/gcp-bind-staging-deploy-iam.sh ../../scripts/gcp-verify-staging-deploy-iam.sh ../../scripts/github-configure-staging-vars.sh
       - name: Reject empty gcloud value projection in IAM scripts
         run: |
           if grep -nF -- "--format=value()" ../../scripts/gcp-bind-staging-deploy-iam.sh || grep -nF -- "--format='value()'" ../../scripts/gcp-bind-staging-deploy-iam.sh; then
@@ -127,7 +127,7 @@ jobs:
           gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
           docker build --pull -t "$TAG" services/api
           docker push "$TAG" | tee /tmp/smartroute-docker-push.log
-          DIGEST="$(sed -nE 's/.*digest: (sha256:[a-f0-9]{64}).*/\\1/p' /tmp/smartroute-docker-push.log | tail -n 1)"
+          DIGEST="$(awk '/digest: sha256:/ {for (i=1;i<=NF;i++) if ($i=="digest:") {print $(i+1)}}' /tmp/smartroute-docker-push.log | tail -n 1)"
           if [[ ! "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
             echo "::error::No immutable image digest was returned by Docker push"
             exit 1
