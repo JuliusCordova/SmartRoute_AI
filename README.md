@@ -15,7 +15,7 @@ SmartRoute AI es un MVP académico de siete semanas para gestionar pedidos, segu
 | Aplicación móvil | Android con Flutter |
 | Dashboard | React |
 | Backend | Python / FastAPI en Google Cloud Run |
-| Datos | Google BigQuery (piloto de bajo volumen; consistencia gestionada por la API) |
+| Datos | **Firestore Standard (Native mode)** — pedidos, rutas y estados |
 | Mapas y matriz de viaje | Google Maps Platform |
 | Optimización de secuencia | Google OR-Tools |
 | IA consultiva | Gemini (sin autorización para modificar operaciones) |
@@ -34,7 +34,7 @@ SmartRoute AI es un MVP académico de siete semanas para gestionar pedidos, segu
 
 ## Próximos artefactos
 
-`specs/openapi.yaml`, `db/bigquery_schema.sql`, pruebas de aceptación, estructura inicial de aplicaciones, CI/CD y un Business Case cuantificado.
+`specs/openapi.yaml`, modelo Firestore, pruebas de aceptación, estructura inicial de aplicaciones, CI/CD y un Business Case cuantificado.
 
 ## Cumplimiento académico UPN Capstone 2026-2
 
@@ -74,6 +74,6 @@ Este repositorio adopta **PA-SDD MVP** inspirado en [DevPattern](https://github.
 
 **Status:** source scaffolding, not verified deployment. API health/readiness endpoints only; there is no implemented order CRUD, Cloud SQL connection, Flutter/React or ADK service yet. The build-time assisted agent workflow is not the product runtime architecture. Human approvals and actual CI/IAM must enforce deployments.
 
-## Cambio de almacenamiento — piloto académico
+## Almacenamiento vigente: Firestore Standard
 
-La decisión actual es **BigQuery**, no PostgreSQL. Ver [ADR-05-BQ](docs/BIGQUERY_PILOT_DECISION.md), [DDL vigente](db/bigquery_schema.sql) y [modelo de datos Mermaid](docs/diagrams/04-data-erd.md). BigQuery sirve para pocas operaciones y evaluación con datos sintéticos; no es equivalente a OLTP, y la concurrencia/idempotencia deben comprobarse antes de presentar una app multiusuario. Los documentos v1 conservan decisiones históricas para trazabilidad.
+Para el piloto usamos **Firestore Standard** como única base operativa. [ADR-05-FS](docs/FIRESTORE_STANDARD_MVP.md) · [Colecciones](docs/FIRESTORE_COLLECTIONS.md) · [Diagrama Mermaid](docs/diagrams/07-firestore-standard.md). BigQuery y PostgreSQL son decisiones históricas, no se provisionarán. El objetivo del Capstone es software ejecutable, con pruebas de transacciones y acceso por FastAPI.
