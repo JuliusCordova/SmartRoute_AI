@@ -101,3 +101,7 @@ Primera vertical versionada: [FastAPI orders API](services/api/README.md), [mode
 ## Staging smoke gate (CI)
 
 GitHub Actions valida unit tests, Firestore Emulator y Docker. Tras un merge a `main`, el despliegue privado a Cloud Run **solo se activa si** `GCP_STAGING_ENABLED=true` y se configuran las identidades WIF. La pipeline obtiene un ID token temporal para `GCP_SMOKE_SERVICE_ACCOUNT` y verifica los endpoints `/health` y `/ready`; si fallan, el job falla. **Esto no es todavía una prueba de autenticación de usuario ni persistencia Firestore real.** Ver [SDLC Fast Lane](docs/SDLC_FAST_LANE.md) y [release gates](docs/RELEASE_CHECKLIST.md).
+
+## Optimización de rutas, incremento US-009
+
+Se añade [evaluador OR-Tools](services/api/app/optimization.py) con [pruebas](services/api/tests/test_optimization.py) y [criterios de evidencia](docs/US-009-OPTIMIZATION-SLICE.md). Utiliza una matriz **sintética** de 1–10 paradas, sin invocar Maps ni Gemini ni consumir GCP. El solver es heurístico; no prueba optimalidad global ni ahorro observado. Integración con endpoints, matrices Maps y Firestore queda pendiente.
