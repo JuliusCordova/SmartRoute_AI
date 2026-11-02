@@ -1,4 +1,5 @@
--- SmartRoute AI BigQuery schema for SMALL ACADEMIC PILOT ONLY.
+-- OBSOLETO: NO EJECUTAR. Firestore Standard es la persistencia vigente: docs/FIRESTORE_STANDARD_MVP.md.
+-- BigQuery design from superseded ADR.
 -- Run: bq query --use_legacy_sql=false < db/bigquery_schema.sql
 -- Uses dataset smartroute_mvp in configured GCP project/location.
 -- UUIDs, status transitions, uniqueness and references are validated in FastAPI;
