@@ -33,7 +33,7 @@ jobs:
       - name: Unit tests
         run: python -m pytest -q
       - name: Validate shell smoke script
-        run: bash -n ../../scripts/smoke-test.sh ../../scripts/gcp-bootstrap-smartroute-identities.sh
+        run: bash -n ../../scripts/smoke-test.sh ../../scripts/gcp-bootstrap-smartroute-identities.sh ../../scripts/gcp-bind-smartroute-iam.sh
       - name: Docker build
         run: docker build -t smartroute-api:ci .
 
