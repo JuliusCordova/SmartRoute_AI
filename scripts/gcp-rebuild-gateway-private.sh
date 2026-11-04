@@ -11,15 +11,15 @@ BACKEND=smartroute-api-staging
 BACKEND_SA="smartroute-runtime@$PROJECT.iam.gserviceaccount.com"
 BACKEND_URL="https://smartroute-api-staging-913797829604.us-central1.run.app"
 BASE_SHA=78c1104a5eb901f1225e3651be71f3c944593f88
+IMAGE="$REGION-docker.pkg.dev/$PROJECT/$REPO/smartroute-gateway"
+TAG="$IMAGE:$SOURCE_SHA"
+fail(){ echo "ERROR: $*" >&2; exit 1; }
 [[ "$(git branch --show-current)" == "main" ]] || fail "must run on main"
 [[ -z "$(git status --porcelain)" ]] || fail "working tree must be clean; inspect untracked files, no global clean"
 SOURCE_SHA="$(git rev-parse HEAD)"
 [[ "$SOURCE_SHA" == "$(git rev-parse origin/main)" ]] || fail "local main not synchronized with origin/main"
 git cat-file -e "$BASE_SHA^{commit}" || fail "original vetted commit unavailable; fetch main history"
 git diff --quiet "$BASE_SHA" HEAD -- services/gateway || fail "gateway source has changed since vetted version; review before rebuilding"
-IMAGE="$REGION-docker.pkg.dev/$PROJECT/$REPO/smartroute-gateway"
-TAG="$IMAGE:$SOURCE_SHA"
-fail(){ echo "ERROR: $*" >&2; exit 1; }
 [[ "$(gcloud config get-value project 2>/dev/null)" == "$PROJECT" ]] || fail "wrong active project"
 [[ -f services/gateway/Dockerfile ]] || fail "run from SmartRoute_AI root"
 [[ "$(gcloud artifacts repositories describe "$REPO" --project="$PROJECT" --location="$REGION" --format='value(format)')" == "DOCKER" ]] || fail "dedicated Docker repository absent/mismatch"
