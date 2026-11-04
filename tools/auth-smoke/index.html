@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>SmartRoute AI · Alta de identidad de prueba</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, sans-serif; color-scheme: light; }
+    body { background: #f3f6fa; color: #142537; display: grid; place-items: center; min-height: 100vh; margin: 0; padding: 24px; box-sizing: border-box; }
+    main { background: #fff; max-width: 520px; width: 100%; border: 1px solid #dce3eb; border-radius: 18px; padding: 28px; box-sizing: border-box; box-shadow: 0 10px 35px #182f4710; }
+    h1 { margin: 0 0 8px; } p { line-height: 1.55; }
+    .hint { color: #536477; } .notice { padding: 12px; border-left: 4px solid #eab55e; background: #fff9e9; border-radius: 6px; }
+    button { padding: 12px 16px; background: #105fb8; border: 0; border-radius: 8px; color: white; font: inherit; cursor: pointer; margin: 8px 8px 8px 0; }
+    button:disabled { cursor: not-allowed; opacity: .55; }
+    button.secondary { background: #495e73; }
+    #result { white-space: pre-wrap; word-break: break-word; border-radius: 8px; padding: 12px; background: #eef5fe; }
+    label { display: flex; gap: 10px; align-items: flex-start; line-height: 1.4; }
+    code { font-size: .9em; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>SmartRoute AI</h1>
+  <p class="hint">Alta de identidad Google · Prueba local de Firebase Authentication</p>
+  <p class="notice"><strong>Importante:</strong> usa únicamente la cuenta Google NUEVA creada para SmartRoute AI. No uses tu cuenta administradora ni otros usuarios de este proyecto compartido.</p>
+  <label><input id="dedicated" type="checkbox" /> Confirmo que utilizaré una cuenta Google nueva, exclusiva para el piloto SmartRoute AI.</label>
+  <div>
+    <button id="login" disabled>Continuar con Google</button>
+    <button id="logout" class="secondary" disabled>Cerrar sesión</button>
+  </div>
+  <p id="state" role="status">Inicializando Firebase...</p>
+  <section id="identity" hidden>
+    <p>Cuenta autenticada correctamente. Copia únicamente el UID (no ningún token):</p>
+    <div id="result"></div>
+    <button id="copyUid" class="secondary">Copiar UID</button>
+  </section>
+  <p class="hint">Esta prueba no accede a Firestore, no crea perfiles OPERATOR y no envía solicitudes al gateway ni al backend. Nunca imprime ni almacena Firebase ID Tokens.</p>
+</main>
+<script type="module" src="./app.js"></script>
+</body>
+</html>
