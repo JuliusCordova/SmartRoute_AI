@@ -1,0 +1,61 @@
+name: SmartRoute gateway image publish (manual only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish-gateway:
+    name: publish-gateway
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate pinned target and existing WIF variables
+        shell: bash
+        env:
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          REGION: ${{ vars.GCP_REGION }}
+          WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+          DEPLOYER: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          [[ "$PROJECT_ID" == "proyectopersonal-480420" ]] || { echo "::error::Unexpected project"; exit 1; }
+          [[ "$REGION" == "us-central1" ]] || { echo "::error::Unexpected region"; exit 1; }
+          [[ "$WIF_PROVIDER" == "projects/913797829604/locations/global/workloadIdentityPools/smartroute-ci/providers/smartroute-main" ]] || { echo "::error::Unexpected WIF provider"; exit 1; }
+          [[ "$DEPLOYER" == "smartroute-deployer@proyectopersonal-480420.iam.gserviceaccount.com" ]] || { echo "::error::Unexpected deployer"; exit 1; }
+          [[ -f services/gateway/Dockerfile ]] || exit 1
+          echo "Explicit manual gateway-only image publish; no Cloud Run deployment."
+      - name: Authenticate to GCP with GitHub WIF (no keys)
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v3
+      - name: Build and publish gateway Docker image
+        id: image
+        env:
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          REGION: ${{ vars.GCP_REGION }}
+          SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/smartroute-staging/smartroute-gateway"
+          TAG="$IMAGE:$SHA"
+          gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
+          docker build --pull -t "$TAG" services/gateway
+          docker push "$TAG" | tee /tmp/smartroute-gateway-image-push.log
+          DIGEST="$(awk '/digest: sha256:/ {for (i=1;i<=NF;i++) if ($i=="digest:") print $(i+1)}' /tmp/smartroute-gateway-image-push.log | tail -n 1)"
+          [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "::error::No immutable Docker digest"; exit 1; }
+          echo "uri=$IMAGE@$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "## SmartRoute gateway image published" >> "$GITHUB_STEP_SUMMARY"
+          echo "Image URI: \`$IMAGE@$DIGEST\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit: \`$SHA\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Manual image publish ONLY. No Cloud Run deployment, no public exposure, no changes to GCP_STAGING_ENABLED." >> "$GITHUB_STEP_SUMMARY"
