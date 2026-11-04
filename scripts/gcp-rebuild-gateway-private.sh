@@ -12,11 +12,11 @@ BACKEND_SA="smartroute-runtime@$PROJECT.iam.gserviceaccount.com"
 BACKEND_URL="https://smartroute-api-staging-913797829604.us-central1.run.app"
 BASE_SHA=78c1104a5eb901f1225e3651be71f3c944593f88
 IMAGE="$REGION-docker.pkg.dev/$PROJECT/$REPO/smartroute-gateway"
-TAG="$IMAGE:$SOURCE_SHA"
 fail(){ echo "ERROR: $*" >&2; exit 1; }
 [[ "$(git branch --show-current)" == "main" ]] || fail "must run on main"
 [[ -z "$(git status --porcelain)" ]] || fail "working tree must be clean; inspect untracked files, no global clean"
 SOURCE_SHA="$(git rev-parse HEAD)"
+TAG="$IMAGE:$SOURCE_SHA"
 [[ "$SOURCE_SHA" == "$(git rev-parse origin/main)" ]] || fail "local main not synchronized with origin/main"
 git cat-file -e "$BASE_SHA^{commit}" || fail "original vetted commit unavailable; fetch main history"
 git diff --quiet "$BASE_SHA" HEAD -- services/gateway || fail "gateway source has changed since vetted version; review before rebuilding"
@@ -48,7 +48,7 @@ echo "Cloud Run max instances 1, min 0, runtime $GATEWAY_SA"
 echo "New image storage / Cloud Run may incur costs; no IAM or Firebase changes."
 if [[ "${CONFIRM_SMARTROUTE_GATEWAY_REBUILD:-}" != "$PROJECT/$SERVICE" ]]; then
   echo "DRY RUN: no Docker build, push or Cloud Run deployment."
-  echo "CONFIRM_SMARTROUTE_GATEWAY_RECOVERY=$PROJECT/$SERVICE bash scripts/gcp-rebuild-gateway-private.sh"
+  echo "CONFIRM_SMARTROUTE_GATEWAY_REBUILD=$PROJECT/$SERVICE bash scripts/gcp-rebuild-gateway-private.sh"
   exit 0
 fi
 
