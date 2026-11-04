@@ -1,0 +1,3 @@
+tools/auth-smoke/firebase-config.local.js
+__pycache__/
+*.pyc
