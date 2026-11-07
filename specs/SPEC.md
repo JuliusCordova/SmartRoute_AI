@@ -64,3 +64,7 @@ G1 problema y P0 aprobados; G2 contratos/ADR/UX revisados; G3–G6 tests y demos
 ## ADR-05-FS: persistencia vigente
 
 Se usa [Firestore Standard](../docs/FIRESTORE_STANDARD_MVP.md), con [colecciones](../docs/FIRESTORE_COLLECTIONS.md) y transacciones para AC-003 y AC-016. BigQuery y PostgreSQL son decisiones históricas. Las pruebas deben ejecutarse antes de declararlas cumplidas.
+
+## 10. Baseline aprobado de UX móvil y seguridad (07-11-2026)
+
+El [prototipo navegable Android/operador](../docs/prototype/index.html) es **referencia visual y de interacción**, no una implementación Flutter/React conectada a GCP. Las decisiones vigentes ADR-09–12 y los controles Nielsen/OWASP se encuentran en [UX_SECURITY_DECISIONS](../docs/UX_SECURITY_DECISIONS.md). Para el backlog: US-006/007/008 adoptan consentimiento GPS explícito y revocable, ruta propia y entrega en un toque con deshacer; US-013/014 contemplan cola offline cifrada e Idempotency-Key estable; US-011/012 preservan procedencia de métricas y Gemini sin permisos de escritura. Cualquier incremento requiere pruebas del backend, pruebas UI y evidencia E2E antes de marcarse como terminado.

@@ -15,3 +15,5 @@
 **Guardrails LLM:** entrada = KPI estructurados validados; salida = texto + caveats + action_taken=false. No herramientas, no DB write, no ejecución de instrucciones arbitrarias ni de archivos. Error de proveedor ⇒ mensaje determinista, nunca inventar mejora.
 
 **Salida profesional:** reportar limitaciones y efectos no deseados (vigilancia, presión laboral, sesgo por zona), con mitigaciones; la mejora jamás se presupone real. Auditoría de acceso y del uso IA y prompts usados en el informe UPN.
+
+**Baseline de experiencia Android, OWASP y seguridad por capas (2026-11-07):** [UX_SECURITY_DECISIONS.md](UX_SECURITY_DECISIONS.md). El [prototipo navegable](prototype/index.html) utiliza solo datos sintéticos y no implica implementación de controles en Flutter.

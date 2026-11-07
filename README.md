@@ -117,3 +117,9 @@ El proyecto GCP compartido contiene datos de Atlas DataGob en Firestore `(defaul
 ## Firestore creada y gate IAM
 
 El usuario creó y verificó la base **`smartroute` Standard Native** con protección contra eliminación en `proyectopersonal-480420` (2026-11-02 UTC). La infraestructura IAM/WIF y Cloud Run sigue pendiente. Próximo paso seguro: ejecutar [preflight IAM de solo lectura](scripts/gcp-iam-preflight.sh) y revisar [evidencia y diseño de permisos](docs/GCP_FIRESTORE_CREATED_AND_IAM_NEXT.md). No habilitar `GCP_STAGING_ENABLED` sin revisión de privilegios y facturación.
+
+## Prototipo de Android y decisiones UX/seguridad (2026-11-07)
+
+- [Prototipo navegable de referencia Android Flutter y panel React](docs/prototype/index.html) — simulación HTML, **sin backend ni APK**.
+- [Decisiones ADR-09–12, flujos y brechas SEC-01–05](docs/UX_SECURITY_DECISIONS.md).
+- Se prioriza el flujo E2E de pedidos del operador antes de implementar el prototipo como app Flutter; el backend cuenta con evidencia local de 25 pruebas superadas y dos omitidas (emulador pendiente).
