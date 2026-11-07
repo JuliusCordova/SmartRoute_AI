@@ -10,6 +10,11 @@
 | ADR-07 | Monolito modular Hexagonal Slice | microservicios monolito plano | dependencia Maps y Vertex testeables sin sobrediseño | ports selectivos, una unidad deploy |
 | ADR-08 | Cloud Logging + Budget Alerts | observabilidad externa | trazabilidad y protección económica | configurar quotas/PII redaction |
 
+| ADR-09 | Entrega en 1 toque y deshacer 6 s | confirmación modal por entrega | RNF-05, Nielsen H3/H7 | deshacer solo antes de confirmación; corrección posterior por operador |
+| ADR-10 | GPS opcional: consentimiento explícito y revocable | GPS obligatorio y permiso del SO sin explicación | privacidad, AC-006/007 | solo ACTIVE, última ubicación, nunca a Gemini |
+| ADR-11 | Cola offline cifrada e idempotente | bloquear entregas sin conexión | AC-016, OWASP Mobile M9 | Android Keystore; conservar Idempotency-Key y limpiar eventos confirmados |
+| ADR-12 | Línea base Nielsen + OWASP Web/Mobile/Agentic/LLM | solo seguridad web | UX, API, móvil e IA requieren marcos propios | [matriz de decisiones y brechas](UX_SECURITY_DECISIONS.md) |
+
 ## Decisión sobre ML propio
 No entrenar regresión ETA en siete semanas sin etiquetas reales. Evolución: Vertex AI entrenar/regresar ETA cuando haya datos observados suficientes, medir MAE/p90 vs Maps; model registry y evaluación por versiones. OR-Tools no es un modelo ML y Gemini sí es un LLM (vía Vertex AI). ADR-05-FS reemplaza PostgreSQL y BigQuery anteriores. Actualizar informe y Business Case posterior sin reescribir entregables históricos. [ADR-05-FS](FIRESTORE_STANDARD_MVP.md).
 ## Referencia patrón
