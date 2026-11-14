@@ -84,3 +84,11 @@ def assign_orders(
         raise HTTPException(status_code=409, detail=str(exc)) from None
     except Exception:
         raise HTTPException(status_code=503, detail="Route assignment unavailable") from None
+
+
+# US-009 pilot: operator-only routing preview; no mutation of orders/routes.
+from .route_preview import PreviewRequest, PreviewResult, compute_preview
+
+@app.post("/api/v1/optimization/preview", response_model=PreviewResult, tags=["Optimization"])
+def optimization_preview(payload: PreviewRequest, actor: UserContext = Depends(require_operator)):
+    return compute_preview(payload)
