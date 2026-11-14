@@ -14,7 +14,7 @@ const LIMA = [-12.095, -77.035];
 const inside = (lat,lng) => lat>=-12.30&&lat<=-11.80&&lng>=-77.20&&lng<=-76.80;
 const mins = v=>Math.round(v/60).toLocaleString("es-PE")+" min";
 const km = v=>(v/1000).toLocaleString("es-PE",{maximumFractionDigits:2})+" km";
-const starting = {address_label:"",latitude:"-12.095",longitude:"-77.035"};
+const starting = {address_label:"",latitude:null,longitude:null,precision:null};
 
 async function api(path, method, token, data){
   const resp=await fetch(GATEWAY+path,{method,headers:{"Authorization":"Bearer "+token, ...(data?{"Content-Type":"application/json"}:{})},body:data?JSON.stringify(data):undefined,cache:"no-store"});
@@ -23,7 +23,7 @@ async function api(path, method, token, data){
   return body;
 }
 
-function MapPanel({orders,depot,preview}){
+function MapPanel({orders,depot,preview,chosen}){
   const ref=useRef(null), map=useRef(null), layers=useRef(null);
   useEffect(()=>{
     if(!ref.current)return;
@@ -46,6 +46,10 @@ function MapPanel({orders,depot,preview}){
       const pt=[o.geo.latitude,o.geo.longitude];points.push(pt);
       L.circleMarker(pt,{radius:8,color:"#143d4b",fillColor:"#31a8b4",fillOpacity:1}).bindPopup(String(i+1)+". "+o.address_label).addTo(group);
     });
+    if(chosen && inside(chosen.latitude,chosen.longitude)) {
+      const pt=[chosen.latitude,chosen.longitude];points.push(pt);
+      L.circleMarker(pt,{radius:11,color:"#1d6a5f",fillColor:"#94e2a9",fillOpacity:1,weight:3}).bindPopup("Nuevo destino por confirmar: "+chosen.label).addTo(group);
+    }
     const byId=Object.fromEntries(valid.map(o=>[o.id,[o.geo.latitude,o.geo.longitude]]));
     if(preview){
       if(preview.route_geometry?.length){
@@ -58,21 +62,44 @@ function MapPanel({orders,depot,preview}){
       L.polyline([...points,points[0]],{color:"#758c9d",weight:2,dashArray:"5 7"}).addTo(group);
     }
     if(points.length>1) map.current.fitBounds(L.latLngBounds(points).pad(.25),{maxZoom:14});
-  },[orders,depot,preview]);
+  },[orders,depot,preview,chosen]);
   return <div className="mapWrap"><div ref={ref} className="map" /><span className="mapCaption">{preview ? (preview.route_geometry?"Recorrido vial estimado":"Conectores esquemáticos; matriz vial estimada"):"Orden original · conectores esquemáticos"}</span></div>;
 }
 
 function App(){
   const [user,setUser]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(""),[orders,setOrders]=useState([]),[form,setForm]=useState(starting),[depot,setDepot]=useState({latitude:"-12.095",longitude:"-77.035"}),[preview,setPreview]=useState(null),[status,setStatus]=useState("Inicia sesión para consultar pedidos.");
+  const [suggestions,setSuggestions]=useState([]),[searchState,setSearchState]=useState(""),[confirmed,setConfirmed]=useState(false),[searching,setSearching]=useState(false);
   useEffect(()=>auth?onAuthStateChanged(auth,u=>{setUser(u);setPreview(null);setOrders([]);setStatus(u?"Sesión iniciada. Consulta tus pedidos.":"Inicia sesión para consultar pedidos.");},e=>setError(e.code)):undefined,[]);
+  useEffect(()=>{
+    if(!user||form.latitude!==null||form.address_label.trim().length<3){
+      setSuggestions([]);setSearchState("");setSearching(false);return;
+    }
+    let live=true;
+    setSearching(true);setSearchState("Buscando direcciones…");
+    const t=setTimeout(async()=>{
+      try{
+        const tkn=await user.getIdToken();
+        const result=await api("/api/v1/geocoding/autocomplete?q="+encodeURIComponent(form.address_label.trim()),"GET",tkn);
+        if(live){setSuggestions(result.items||[]);setSearchState(result.notice||(result.items?.length?"Selecciona una dirección de la lista.":"Sin resultados en el área piloto."));}
+      }catch(e){if(live){setSuggestions([]);setSearchState("No se pudo buscar: "+e.message);}}
+      finally{if(live)setSearching(false);}
+    },500);
+    return ()=>{live=false;clearTimeout(t);};
+  },[form.address_label,form.latitude,user]);
+  function selectAddress(s){
+    setForm({address_label:s.label,latitude:s.latitude,longitude:s.longitude,precision:s.precision});
+    setSuggestions([]);setSearchState("");setConfirmed(s.precision==="precise");setPreview(null);
+  }
   async function run(fn){setBusy(true);setError("");try{await fn()}catch(e){setError(e.message)}finally{setBusy(false)}}
   async function token(){if(!auth?.currentUser) throw new Error("Inicia sesión primero");return auth.currentUser.getIdToken();}
   const load=()=>run(async()=>{const x=await api("/api/v1/orders?limit=50","GET",await token());setOrders(x.items.map(o=>({...o,checked:o.status==="PENDING"})));setPreview(null);setStatus(x.items.length+" pedidos recuperados de Firestore.");});
   const create=()=>run(async()=>{
+    if(form.latitude===null||form.longitude===null) throw new Error("Selecciona una dirección de las sugerencias antes de guardar");
     const lat=Number(form.latitude),lng=Number(form.longitude);
-    if(form.address_label.trim().length<3 || !inside(lat,lng))throw new Error("Dirección mínima de 3 caracteres y coordenadas dentro del área piloto de Lima");
+    if(!inside(lat,lng))throw new Error("ALERTA: destino fuera de la zona del piloto en Lima");
+    if(form.precision!=="precise"&&!confirmed)throw new Error("ALERTA: ubicación aproximada; confirma el punto del mapa antes de guardar");
     await api("/api/v1/orders","POST",await token(),{address_label:form.address_label.trim(),geo:{latitude:lat,longitude:lng}});
-    setForm(starting);
+    setForm(starting);setConfirmed(false);setSuggestions([]);
     const x=await api("/api/v1/orders?limit=50","GET",await token());
     setOrders(x.items.map(o=>({...o,checked:o.status==="PENDING"})));setPreview(null);setStatus("Pedido creado y consultado desde Firestore.");
   });
@@ -97,11 +124,24 @@ function App(){
       <aside>
         <section className="panel">
           <div className="panelhead"><h2>01 · Pedidos</h2><button className="outline" onClick={load} disabled={!user||busy}>Actualizar</button></div>
-          <p>Registra destinos ficticios para el piloto. Las coordenadas se validan antes de persistir.</p>
+          <p>Busca una dirección ficticia, selecciona una sugerencia y confirma el punto sobre el mapa. No necesitas ingresar coordenadas.</p>
           <form onSubmit={e=>{e.preventDefault();create()}} className="form">
-            <label>Dirección ficticia<input required minLength={3} maxLength={200} value={form.address_label} onChange={e=>setForm({...form,address_label:e.target.value})} placeholder="Av. Ejemplo 123, Lima"/></label>
-            <div className="duo"><label>Latitud<input type="number" step="any" value={form.latitude} onChange={e=>setForm({...form,latitude:e.target.value})}/></label><label>Longitud<input type="number" step="any" value={form.longitude} onChange={e=>setForm({...form,longitude:e.target.value})}/></label></div>
-            <button type="submit" disabled={!user||busy}>Guardar pedido</button>
+            <label htmlFor="address-search">Buscar dirección (piloto Lima)</label>
+            <input id="address-search" required minLength={3} maxLength={200} autoComplete="off" value={form.address_label}
+              onChange={e=>{setForm({address_label:e.target.value,latitude:null,longitude:null,precision:null});setConfirmed(false);setSuggestions([]);}}
+              placeholder="Ej. Av. Arequipa 1200, Lima" role="combobox" aria-autocomplete="list" aria-expanded={suggestions.length>0} aria-controls="address-options"/>
+            {searching&&<span className="lookup-status">Buscando…</span>}
+            {suggestions.length>0&&<div id="address-options" className="suggestions" role="listbox" aria-label="Direcciones encontradas">
+              {suggestions.map(s=><button type="button" role="option" aria-selected="false" key={s.id} className="suggestion"
+                onClick={()=>selectAddress(s)}><span>📍 {s.label}</span><small>{s.precision==="precise"?"Número identificado":"Ubicación aproximada"}</small></button>)}
+            </div>}
+            {!form.precision&&searchState&&!searching&&<div className="lookup-status" role="status">{searchState}</div>}
+            {form.latitude!==null&&<div className={form.precision==="precise"?"location-ok":"location-warning"} role="status">
+              <strong>{form.precision==="precise"?"✓ Dirección seleccionada":"⚠ Ubicación aproximada"}</strong>
+              <span>{form.latitude.toFixed(5)}, {form.longitude.toFixed(5)}</span>
+              {form.precision!=="precise"&&<label className="location-confirm"><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>Confirmo que el punto es válido para la entrega ficticia</label>}
+            </div>}
+            <button type="submit" disabled={!user||busy||form.latitude===null||(form.precision!=="precise"&&!confirmed)}>Guardar pedido</button>
           </form>
           <div className="panelhead"><h3>Pedidos en Firestore</h3><span className="count">{selected.length} seleccionados</span></div>
           <div className="orders">{orders.length?orders.map(o=><label className="order" key={o.id}><input type="checkbox" checked={o.checked} disabled={busy||o.status!=="PENDING"} onChange={e=>{setOrders(old=>old.map(x=>x.id===o.id?{...x,checked:e.target.checked}:x));setPreview(null)}}/><span><strong>{o.address_label}</strong><small>{o.status} · {o.id.slice(0,8)}</small></span></label>):<p className="empty">No hay pedidos cargados. Pulsa Actualizar.</p>}</div>
@@ -114,7 +154,7 @@ function App(){
         </section>
       </aside>
       <article>
-        <section className="panel mapSection"><div className="panelhead"><div><h2>Mapa de operaciones</h2><p>OpenStreetMap · puntos seleccionados · recorridos</p></div><span className="count">Lima, Perú</span></div><MapPanel orders={orders} depot={depot} preview={preview}/></section>
+        <section className="panel mapSection"><div className="panelhead"><div><h2>Mapa de operaciones</h2><p>OpenStreetMap · puntos seleccionados · recorridos</p></div><span className="count">Lima, Perú</span></div><MapPanel orders={orders} depot={depot} preview={preview} chosen={form.latitude===null?null:{...form,label:form.address_label}}/></section>
         <section className="panel results"><div className="panelhead"><h2>03 · Comparación</h2><span className="count">{preview?"ESTIMADO":"PENDIENTE DE CÁLCULO"}</span></div>
           {preview?<><div className="metrics">
             <div className="metric"><small>Orden original</small><strong>{mins(preview.baseline_seconds)}</strong><span>{km(preview.baseline_meters)}</span></div>
