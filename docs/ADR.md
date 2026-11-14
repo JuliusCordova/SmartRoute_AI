@@ -14,3 +14,7 @@
 No entrenar regresión ETA en siete semanas sin etiquetas reales. Evolución: Vertex AI entrenar/regresar ETA cuando haya datos observados suficientes, medir MAE/p90 vs Maps; model registry y evaluación por versiones. OR-Tools no es un modelo ML y Gemini sí es un LLM (vía Vertex AI). ADR-05-FS reemplaza PostgreSQL y BigQuery anteriores. Actualizar informe y Business Case posterior sin reescribir entregables históricos. [ADR-05-FS](FIRESTORE_STANDARD_MVP.md).
 ## Referencia patrón
 [DevPattern — PA-SDD](https://github.com/JuliusCordova/DevPattern/tree/main/patterns/progressive-agentic-sdd) · [Arquitectura Hexagonal Slice](https://github.com/JuliusCordova/DevPattern/tree/main/patterns/architecture) · [MSS](https://github.com/JuliusCordova/DevPattern/blob/main/definition-packs/minimum-sufficient-specification.md). Se adoptan principios, no se copian artefactos de un agente no necesario.
+
+## ADR-13 / ADR-14 — propuestas web-first
+
+La demo priorizará un panel React del operador con mapa OpenStreetMap, matriz vial openrouteservice y OR-Tools, antes de Flutter. Decisiones, alternativas, riesgos y trazabilidad: [ADR-13/14](ADR-13-14-OPEN-MAPS-WEB-FIRST.md). Estas dos ADR permanecen **propuestas** hasta revisión de PR y pruebas; la presentación académica mantiene Google Routes como baseline histórico.
