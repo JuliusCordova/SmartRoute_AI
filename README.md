@@ -117,3 +117,11 @@ El proyecto GCP compartido contiene datos de Atlas DataGob en Firestore `(defaul
 ## Firestore creada y gate IAM
 
 El usuario creó y verificó la base **`smartroute` Standard Native** con protección contra eliminación en `proyectopersonal-480420` (2026-11-02 UTC). La infraestructura IAM/WIF y Cloud Run sigue pendiente. Próximo paso seguro: ejecutar [preflight IAM de solo lectura](scripts/gcp-iam-preflight.sh) y revisar [evidencia y diseño de permisos](docs/GCP_FIRESTORE_CREATED_AND_IAM_NEXT.md). No habilitar `GCP_STAGING_ENABLED` sin revisión de privilegios y facturación.
+
+## Incremento propuesto: panel web con OpenStreetMap y optimización vial
+
+- [Operador React y Cloud Run](apps/operator-web/README.md): login Google, pedidos reales vía gateway, mapa OSM, selección de paradas y comparación base/optimizada.
+- [Optimización ORS + OR-Tools](services/api/app/route_preview.py): matriz estimada vial desde openrouteservice, retorno con huella y procedencia. **Requiere clave ORS en Secret Manager y despliegue explícito**.
+- [ADR-13/ADR-14](docs/ADR-13-14-OPEN-MAPS-WEB-FIRST.md): decisiones cartográficas de bajo costo y desarrollo web-first.
+
+**Estado:** implementación propuesta en PR y pendiente CI/despliegue/GCP E2E. No registrar como rutas persistidas o mejoras observadas. La app Android se construirá después de validar esta demo web.
