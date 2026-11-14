@@ -50,6 +50,21 @@ jobs:
           docker build -t smartroute-api:ci .
           docker build -t smartroute-gateway:ci ../gateway
 
+  operator-web-build:
+    name: operator-web-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install UI dependencies
+        run: npm install --prefix apps/operator-web --no-audit --no-fund
+      - name: Build operator UI
+        run: npm run build --prefix apps/operator-web
+      - name: Build operator Cloud Run image
+        run: docker build -t smartroute-operator-web:ci apps/operator-web
+
   firestore-integration:
     name: firestore-emulator
     runs-on: ubuntu-latest
