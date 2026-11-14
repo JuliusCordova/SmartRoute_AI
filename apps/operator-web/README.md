@@ -33,3 +33,13 @@ El servicio FastAPI requiere `ORS_API_KEY` desde **Secret Manager**, configurado
 Validación Firebase duplicada en gateway y API; API privada solo IAM; acceso Firestore con SDK servidor, no desde navegador. Máximo 10 destinos, coordenadas acotadas a Lima piloto. Las pruebas deben cubrir 401/403, matriz incompleta (422), proveedor no configurado (503), lista completa sin duplicados y que no se persistió ruta por la previsualización. Las cuotas de openrouteservice requieren restricción por operador y límites GCP de presupuesto/alertas antes de ampliar el piloto.
 
 Ejecutar localmente con `npm install && npm run build`; para ejecutar la imagen se requieren las variables descritas. El botón de optimizar retorna un error controlado si falta `ORS_API_KEY`: **no sustituye con Haversine ni inventa cifras**.
+
+## Autocompletado de direcciones (nueva capacidad)
+
+El operador escribe 3–120 caracteres; el formulario consulta `GET /api/v1/geocoding/autocomplete?q=...` con Firebase Bearer a través del gateway. La API privada consulta Geoapify con filtro geográfico limitado al piloto de Lima y devuelve máximo 5 alternativas. La clave `GEOAPIFY_API_KEY` **solamente** pertenece al runtime privado de FastAPI, preferiblemente montada desde Secret Manager. No se muestra al navegador ni se almacena en Firestore.
+
+En el panel, seleccionar una sugerencia determina sus coordenadas y dibuja un círculo verde temporal en el mapa; el operador no ingresa latitud/longitud. Si Geoapify no identifica número de inmueble, se advierte **ubicación aproximada** y se requiere marcar confirmación; sin selección no se puede guardar. Búsquedas sin resultados y errores del servicio dan avisos comprensibles. El área de búsqueda es un rectángulo piloto, no cobertura real de una operación comercial. Todos los pedidos demo deben ser **ficticios**, no domicilios personales.
+
+**Pendiente de activación:** crear clave Geoapify con cuotas y restricciones; guardarla en Secret Manager de SmartRoute y dar acceso solo a runtime API. Actualizar contenedores de gateway y backend en staging, manteniendo backend IAM privado, y configurar CORS exacto del dominio web. El frontend ya desplegado **no incorpora esta mejora** hasta construir una revisión nueva. No afirmar E2E validada hasta prueba real con cuenta OPERATOR.
+
+El proveedor OSMF público de Nominatim prohíbe su uso como autocomplete; no se utiliza. Fuentes: https://apidocs.geoapify.com/docs/geocoding/address-autocomplete/ y https://operations.osmfoundation.org/policies/nominatim/.
