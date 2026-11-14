@@ -92,3 +92,10 @@ from .route_preview import PreviewRequest, PreviewResult, compute_preview
 @app.post("/api/v1/optimization/preview", response_model=PreviewResult, tags=["Optimization"])
 def optimization_preview(payload: PreviewRequest, actor: UserContext = Depends(require_operator)):
     return compute_preview(payload)
+
+# Address autocomplete for operator; key stays in private API runtime.
+from .geocoding import AddressSuggestions, lookup_addresses
+
+@app.get("/api/v1/geocoding/autocomplete", response_model=AddressSuggestions, tags=["Geocoding"])
+def autocomplete_address(q: str = Query(min_length=3, max_length=120), actor: UserContext = Depends(require_operator)):
+    return lookup_addresses(q)
