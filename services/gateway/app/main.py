@@ -26,6 +26,7 @@ ALLOWED = {
     ("GET", "/api/v1/orders"),
     ("POST", "/api/v1/orders"),
     ("POST", "/api/v1/routes"),
+    ("POST", "/api/v1/optimization/preview"),
 }
 app = FastAPI(title="SmartRoute authenticated gateway", docs_url=None, redoc_url=None,
               openapi_url=None)
