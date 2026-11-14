@@ -127,7 +127,7 @@ function App(){
           <p>Busca una dirección ficticia, selecciona una sugerencia y confirma el punto sobre el mapa. No necesitas ingresar coordenadas.</p>
           <form onSubmit={e=>{e.preventDefault();create()}} className="form">
             <label htmlFor="address-search">Buscar dirección (piloto Lima)</label>
-            <input id="address-search" required minLength={3} maxLength={200} autoComplete="off" value={form.address_label}
+            <input id="address-search" required minLength={3} maxLength={120} autoComplete="off" value={form.address_label}
               onChange={e=>{setForm({address_label:e.target.value,latitude:null,longitude:null,precision:null});setConfirmed(false);setSuggestions([]);}}
               placeholder="Ej. Av. Arequipa 1200, Lima" role="combobox" aria-autocomplete="list" aria-expanded={suggestions.length>0} aria-controls="address-options"/>
             {searching&&<span className="lookup-status">Buscando…</span>}
