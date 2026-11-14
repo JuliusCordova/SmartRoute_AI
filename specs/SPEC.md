@@ -64,3 +64,7 @@ G1 problema y P0 aprobados; G2 contratos/ADR/UX revisados; G3–G6 tests y demos
 ## ADR-05-FS: persistencia vigente
 
 Se usa [Firestore Standard](../docs/FIRESTORE_STANDARD_MVP.md), con [colecciones](../docs/FIRESTORE_COLLECTIONS.md) y transacciones para AC-003 y AC-016. BigQuery y PostgreSQL son decisiones históricas. Las pruebas deben ejecutarse antes de declararlas cumplidas.
+
+## 10. Secuencia de ejecución revisada — propuesta web-first (14-11-2026)
+
+Se propone implementar **dashboard OPERATOR + mapa OSM + previsualización con matriz vial ORS y OR-Tools** antes de la app Flutter DRIVER. No cambia alcance ni objetivos: reordena la ruta crítica US-003/004/005 → US-009/010 → US-006/007/008. Ver [ADR-13/14](../docs/ADR-13-14-OPEN-MAPS-WEB-FIRST.md) y [código frontend](../apps/operator-web/README.md). Este PR añade POST `/api/v1/optimization/preview` protegido por OPERATOR: depósito y 1–10 paradas dentro del piloto; datos de matriz reales `estimated` con huella, duración/distancia y secuencia best-found. **No persistencia ni publicación de ruta en este incremento**; esas operaciones se mantienen como trabajo pendiente de US-010. Gemini P1 posterior. Controles obligatorios: clave ORS solo en API vía Secret Manager; frontend en Cloud Run requiere Firebase web configuration, dominio autorizado y CORS exacto. No se afirma resultado piloto hasta pruebas observadas.
