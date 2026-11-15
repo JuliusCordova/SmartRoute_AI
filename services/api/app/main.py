@@ -206,6 +206,7 @@ def get_my_driver_route(
     except Exception:
         raise HTTPException(status_code=503, detail="Driver route unavailable") from None
     if route is None:
-        response.status_code = 204
-        return None
+        # Return an actual empty HTTP response, bypassing DriverRoute
+        # response-model serialization for the no-assignment case.
+        return Response(status_code=204)
     return route
