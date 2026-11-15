@@ -38,31 +38,6 @@ function MapPanel({orders,depot,preview,chosen}){
   useEffect(()=>{
     if(!map.current||!layers.current)return;
     const group=layers.current;group.clearLayers();
-    const refreshSaved=()=>run(async()=>{
-    const x=await api("/api/v1/optimized-routes?limit=20","GET",await token());
-    setSavedRoutes(x.items||[]);
-    setStatus((x.items||[]).length+" rutas optimizadas recuperadas de Firestore.");
-  });
-  const saveOptimized=()=>run(async()=>{
-    if(!preview || !pendingSaveKey.current) throw new Error("Primero optimiza los pedidos");
-    const picked=orders.filter(o=>o.checked);
-    if(!picked.length || picked.length>10) throw new Error("Selecciona de 1 a 10 pedidos");
-    if(!inside(Number(depot.latitude),Number(depot.longitude))) throw new Error("Depósito fuera de Lima piloto");
-    const saved=await api("/api/v1/optimized-routes","POST",await token(),{
-      depot:{latitude:Number(depot.latitude),longitude:Number(depot.longitude)},
-      order_ids:picked.map(o=>o.id),
-      idempotency_key:pendingSaveKey.current,
-    });
-    setSavedRoute(saved);setPreview(null);pendingSaveKey.current=null;
-    const tkn=await token();
-    const [ordersResult,routesResult]=await Promise.all([
-      api("/api/v1/orders?limit=50","GET",tkn),
-      api("/api/v1/optimized-routes?limit=20","GET",tkn),
-    ]);
-    setOrders(ordersResult.items.map(o=>({...o,checked:false})));
-    setSavedRoutes(routesResult.items||[]);
-    setStatus("Ruta "+saved.id.slice(0,8)+" guardada en Firestore como PLANNED. Pedidos reservados.");
-  });
   const selected=orders.filter(o=>o.checked);
     const valid=selected.filter(o=>inside(o.geo.latitude,o.geo.longitude));
     const points=[[Number(depot.latitude),Number(depot.longitude)]];
@@ -139,6 +114,31 @@ function App(){
       stops:picked.map(o=>({id:o.id,latitude:o.geo.latitude,longitude:o.geo.longitude}))
     });
     setPreview(p);pendingSaveKey.current=crypto.randomUUID();setStatus("Secuencia optimizada con matriz vial. Resultado estimado, no observado.");
+  });
+    const refreshSaved=()=>run(async()=>{
+    const x=await api("/api/v1/optimized-routes?limit=20","GET",await token());
+    setSavedRoutes(x.items||[]);
+    setStatus((x.items||[]).length+" rutas optimizadas recuperadas de Firestore.");
+  });
+  const saveOptimized=()=>run(async()=>{
+    if(!preview || !pendingSaveKey.current) throw new Error("Primero optimiza los pedidos");
+    const picked=orders.filter(o=>o.checked);
+    if(!picked.length || picked.length>10) throw new Error("Selecciona de 1 a 10 pedidos");
+    if(!inside(Number(depot.latitude),Number(depot.longitude))) throw new Error("Depósito fuera de Lima piloto");
+    const saved=await api("/api/v1/optimized-routes","POST",await token(),{
+      depot:{latitude:Number(depot.latitude),longitude:Number(depot.longitude)},
+      order_ids:picked.map(o=>o.id),
+      idempotency_key:pendingSaveKey.current,
+    });
+    setSavedRoute(saved);setPreview(null);pendingSaveKey.current=null;
+    const tkn=await token();
+    const [ordersResult,routesResult]=await Promise.all([
+      api("/api/v1/orders?limit=50","GET",tkn),
+      api("/api/v1/optimized-routes?limit=20","GET",tkn),
+    ]);
+    setOrders(ordersResult.items.map(o=>({...o,checked:false})));
+    setSavedRoutes(routesResult.items||[]);
+    setStatus("Ruta "+saved.id.slice(0,8)+" guardada en Firestore como PLANNED. Pedidos reservados.");
   });
   const selected=orders.filter(o=>o.checked);
   return <div className="app">
