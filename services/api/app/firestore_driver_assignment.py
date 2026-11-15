@@ -9,7 +9,7 @@ from hashlib import sha256
 import json
 
 from google.cloud import firestore
-from .driver_assignment import AssignDriverRequest, DriverRoute, DriverStop
+from .driver_assignment import AssignDriverRequest, DriverRoute, DriverStop, DriverSummary, DriverPage
 from .firestore_config import firestore_client
 from .optimized_routes import OptimizedRoute
 
@@ -31,6 +31,55 @@ def _request_hash(payload: AssignDriverRequest) -> str:
 class FirestoreDriverAssignmentRepository:
     def __init__(self, db=None):
         self.db = db if db is not None else firestore_client()
+
+    def list_available(self, *, limit: int, after: str | None = None) -> DriverPage:
+        """Bounded scan, validated against both Firebase role and occupancy.
+
+        Legacy driver records are never trusted as identity evidence.
+        Query is strictly read-only and does not reserve a candidate.
+        The assign transaction is still authoritative.
+        """
+        if not 1 <= limit <= 20:
+            raise ValueError("Invalid limit")
+        drivers = self.db.collection("drivers")
+        query = drivers.order_by("__name__")
+        if after:
+            if "/" in after or len(after) > 128:
+                raise ValueError("Invalid cursor")
+            prior = drivers.document(after).get()
+            if not prior.exists:
+                raise ValueError("Invalid cursor")
+            query = query.start_after(prior)
+        candidates = list(query.limit(101).stream())
+        result = []
+        scanned = 0
+        for candidate in candidates[:100]:
+            scanned += 1
+            d = candidate.to_dict() or {}
+            uid = candidate.id
+            if (d.get("uid") != uid or d.get("active") is not True
+                or d.get("available") is not True):
+                continue
+            profile = self.db.collection("users").document(uid).get()
+            if not profile.exists:
+                continue
+            identity = profile.to_dict() or {}
+            if identity.get("role") != "DRIVER" or identity.get("active") is not True:
+                continue
+            if self.db.collection("driver_assignments").document(uid).get().exists:
+                continue
+            name = d.get("display_name")
+            if not isinstance(name, str) or not name.strip():
+                continue
+            result.append(DriverSummary(
+                uid=uid, display_name=name.strip(), active=True, available=True))
+            if len(result) >= limit:
+                break
+        # The cursor represents the last scanned driver, not the last accepted
+        # candidate: skipped/inactive profiles cannot stall pagination.
+        more = scanned < len(candidates)
+        cursor = candidates[scanned - 1].id if more and scanned else None
+        return DriverPage(items=result, next_cursor=cursor)
 
     def assign(self, route_id: str, payload: AssignDriverRequest, *,
                operator_uid: str) -> OptimizedRoute:
