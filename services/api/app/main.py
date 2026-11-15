@@ -104,7 +104,7 @@ def autocomplete_address(q: str = Query(min_length=3, max_length=120), actor: Us
 # US-010: optimized route persistence; matrix is recomputed on private API.
 from .optimized_routes import (
     OptimizedRoute, OptimizedRouteCreate, OptimizedRoutePage,
-    OptimizedRouteConflict, OptimizedRouteMissing,
+    OptimizedRouteConflict, OptimizedRouteMissing, OptimizedRouteDetail,
 )
 from .firestore_optimized_routes import FirestoreOptimizedRouteRepository
 
@@ -147,14 +147,14 @@ def list_optimized_routes(
     except Exception:
         raise HTTPException(503, "Route storage unavailable") from None
 
-@app.get("/api/v1/optimized-routes/{route_id}", response_model=OptimizedRoute, tags=["Optimized routes"])
+@app.get("/api/v1/optimized-routes/{route_id}", response_model=OptimizedRouteDetail, tags=["Optimized routes"])
 def get_optimized_route(
     route_id: str,
     actor: UserContext = Depends(require_operator),
     repo: FirestoreOptimizedRouteRepository = Depends(get_optimized_route_repository),
 ):
     try:
-        return repo.get(route_id)
+        return repo.detail(route_id)
     except OptimizedRouteMissing as exc:
         raise HTTPException(404, str(exc)) from None
     except Exception:
