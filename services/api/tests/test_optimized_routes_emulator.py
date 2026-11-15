@@ -50,6 +50,14 @@ def test_atomic_save_reserves_orders_and_retries(monkeypatch):
     loaded = repo.get(first.id)
     assert loaded.ordered_order_ids == ids[::-1]
     assert loaded.matrix_provider == "openrouteservice"
+    # Reload the saved route after the original optimization, preserving
+    # the stop order, addresses and coordinates without calling ORS again.
+    monkeypatch.delenv("ORS_API_KEY", raising=False)
+    detailed = repo.detail(first.id)
+    assert [stop.id for stop in detailed.stops] == ids[::-1]
+    assert all(stop.address_label.startswith("Synthetic Lima stop") for stop in detailed.stops)
+    assert detailed.geometry_origin == "schematic"
+    assert detailed.route_geometry is None
     for order_id in ids:
         doc = db.collection("orders").document(order_id).get().to_dict()
         assert doc["route_id"] == first.id
