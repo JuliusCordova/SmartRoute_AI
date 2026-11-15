@@ -92,8 +92,9 @@ function App(){
   const [user,setUser]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(""),[orders,setOrders]=useState([]),[form,setForm]=useState(starting),[depot,setDepot]=useState({latitude:"-12.095",longitude:"-77.035"}),[preview,setPreview]=useState(null),[status,setStatus]=useState("Inicia sesión para consultar pedidos.");
   const [suggestions,setSuggestions]=useState([]),[searchState,setSearchState]=useState(""),[confirmed,setConfirmed]=useState(false),[searching,setSearching]=useState(false);
   const [savedRoutes,setSavedRoutes]=useState([]),[savedRoute,setSavedRoute]=useState(null);
-  const pendingSaveKey=useRef(null);
-  useEffect(()=>auth?onAuthStateChanged(auth,u=>{setUser(u);setPreview(null);setOrders([]);setSavedRoutes([]);setSavedRoute(null);pendingSaveKey.current=null;setStatus(u?"Sesión iniciada. Consulta tus pedidos.":"Inicia sesión para consultar pedidos.");},e=>setError(e.code)):undefined,[]);
+  const [drivers,setDrivers]=useState([]),[selectedDriver,setSelectedDriver]=useState("");
+  const pendingSaveKey=useRef(null),pendingAssignmentKey=useRef(null);
+  useEffect(()=>auth?onAuthStateChanged(auth,u=>{setUser(u);setPreview(null);setOrders([]);setSavedRoutes([]);setSavedRoute(null);setDrivers([]);setSelectedDriver("");pendingSaveKey.current=null;pendingAssignmentKey.current=null;setStatus(u?"Sesión iniciada. Consulta tus pedidos.":"Inicia sesión para consultar pedidos.");},e=>setError(e.code)):undefined,[]);
   useEffect(()=>{
     if(!user||form.latitude!==null||form.address_label.trim().length<3){
       setSuggestions([]);setSearchState("");setSearching(false);return;
@@ -145,9 +146,43 @@ function App(){
   async function showSavedRoute(id){
     const detail=await api("/api/v1/optimized-routes/"+encodeURIComponent(id),"GET",await token());
     setSavedRoute(detail);
+    setSelectedDriver("");
+    pendingAssignmentKey.current=null;
     setPreview(null);
     setStatus("Ruta "+detail.id.slice(0,8)+" recuperada con "+detail.stops.length+" paradas en secuencia.");
   }
+  const loadDrivers=()=>run(async()=>{
+    const candidates=await api("/api/v1/drivers?available=true&limit=20","GET",await token());
+    setDrivers(candidates.items||[]);
+    setSelectedDriver("");
+    pendingAssignmentKey.current=null;
+    setStatus((candidates.items||[]).length+" conductores disponibles encontrados.");
+  });
+  const assignDriver=()=>run(async()=>{
+    if(!savedRoute||savedRoute.status!=="PLANNED"||savedRoute.driver_id)
+      throw new Error("Selecciona una ruta PLANNED sin conductor");
+    if(!selectedDriver||!drivers.some(d=>d.uid===selectedDriver))
+      throw new Error("Selecciona un conductor disponible");
+    if(!pendingAssignmentKey.current) pendingAssignmentKey.current=crypto.randomUUID();
+    const id=savedRoute.id;
+    const assigned=await api("/api/v1/optimized-routes/"+encodeURIComponent(id)+"/assign-driver",
+      "POST",await token(),{
+        driver_id:selectedDriver,
+        expected_version:savedRoute.version,
+        idempotency_key:pendingAssignmentKey.current,
+      });
+    const tkn=await token();
+    const [detail,routes]=await Promise.all([
+      api("/api/v1/optimized-routes/"+encodeURIComponent(id),"GET",tkn),
+      api("/api/v1/optimized-routes?limit=20","GET",tkn),
+    ]);
+    setSavedRoute(detail);
+    setSavedRoutes(routes.items||[]);
+    setDrivers(old=>old.filter(d=>d.uid!==assigned.driver_id));
+    setSelectedDriver("");
+    pendingAssignmentKey.current=null;
+    setStatus("Conductor asignado a la ruta "+id.slice(0,8)+". Sigue PLANNED hasta iniciar recorrido.");
+  });
   const saveOptimized=()=>run(async()=>{
     if(!preview || !pendingSaveKey.current) throw new Error("Primero optimiza los pedidos");
     const picked=orders.filter(o=>o.checked);
@@ -213,11 +248,11 @@ function App(){
         </section>
         <section className="panel">
           <div className="panelhead"><h2>04 · Rutas guardadas</h2><button className="outline" disabled={!user||busy} onClick={refreshSaved}>Actualizar rutas</button></div>
-          <p>Rutas PLANNED guardadas en Firestore. No están asignadas a un conductor.</p>
+          <p>Rutas PLANNED guardadas en Firestore. Pueden estar pendientes de conductor o ya asignadas.</p>
           {savedRoutes.length? <div className="orders">{savedRoutes.map(r=>
             <button className="outline" style={{textAlign:"left",width:"100%",marginBottom:8}} key={r.id}
               onClick={()=>run(()=>showSavedRoute(r.id))}>
-              {r.id.slice(0,8)} · {r.order_ids.length} entregas · {mins(r.optimized_seconds)} · {km(r.optimized_meters)}
+              {r.id.slice(0,8)} · {r.order_ids.length} entregas · {mins(r.optimized_seconds)} · {km(r.optimized_meters)} · {r.driver_id?"Asignada":"Sin conductor"}
             </button>
           )}</div> : <p className="empty">No se han consultado rutas. Pulsa Actualizar rutas.</p>}
         </section>
@@ -242,10 +277,27 @@ function App(){
           <div className="sequence"><b>Secuencia persistida:</b> Depósito → {(savedRoute.stops?.length?savedRoute.stops.map(s=>s.sequence+". "+s.address_label):savedRoute.ordered_order_ids).join(" → ")} → Depósito</div>
           <p className="fineprint">Mapa: {savedRoute.geometry_origin==="openrouteservice"?"trazado vial estimado de openrouteservice":"conectores esquemáticos entre paradas; no representan la vialidad"}.</p>
           {savedRoute.detail_warnings?.length>0&&<p className="fineprint">{savedRoute.detail_warnings.join(". ")}</p>}
-          <p className="fineprint">Origen: {savedRoute.data_origin}. Esta ruta aún no está asignada a un conductor.</p>
+          <p className="fineprint">Origen: {savedRoute.data_origin}. {savedRoute.driver_id?"Conductor asignado: "+savedRoute.driver_id+" · pendiente de activación.":"Esta ruta aún no está asignada a un conductor."}</p>
+        </section>}
+        {savedRoute&&<section className="panel results">
+          <div className="panelhead"><h2>06 · Asignar conductor</h2><span className="count">{savedRoute.driver_id?"ASIGNADA":"PENDIENTE"}</span></div>
+          {savedRoute.driver_id?<p>Ruta asignada a un conductor. Continúa en estado PLANNED hasta su activación.</p>:<>
+            <p>Selecciona un conductor activo y disponible. La asignación será validada de forma transaccional.</p>
+            <button className="outline" disabled={!user||busy} onClick={loadDrivers}>Consultar conductores disponibles</button>
+            <label className="driverPicker">Conductor
+              <select value={selectedDriver} disabled={busy||!drivers.length} onChange={e=>{
+                setSelectedDriver(e.target.value);pendingAssignmentKey.current=null;
+              }}>
+                <option value="">Selecciona un conductor</option>
+                {drivers.map(d=><option key={d.uid} value={d.uid}>{d.display_name} · {d.uid.slice(0,8)}</option>)}
+              </select>
+            </label>
+            <button className="accent" disabled={!user||busy||!selectedDriver} onClick={assignDriver}>Confirmar asignación</button>
+            {!drivers.length&&<p className="fineprint">No hay candidatos cargados. Consulta conductores disponibles; puede no haber perfiles DRIVER creados todavía.</p>}
+          </>}
         </section>}
       </article>
-    </main><footer>SmartRoute AI · MVP académico · La previsualización no reserva pedidos; al guardar se crea una ruta PLANNED, todavía sin conductor asignado.</footer>
+    </main><footer>SmartRoute AI · MVP académico · La previsualización no reserva pedidos; al guardar se crea una ruta PLANNED; la asignación posterior no inicia el recorrido.</footer>
   </div>;
 }
 createRoot(document.getElementById("root")).render(<App/>);
