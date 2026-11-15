@@ -159,3 +159,34 @@ def get_optimized_route(
         raise HTTPException(404, str(exc)) from None
     except Exception:
         raise HTTPException(503, "Route storage unavailable") from None
+
+
+# US-011: driver assignment, only callable by an authenticated OPERATOR.
+from .driver_assignment import AssignDriverRequest
+from .firestore_driver_assignment import (
+    FirestoreDriverAssignmentRepository, DriverAssignmentConflict,
+    DriverAssignmentMissing,
+)
+
+@lru_cache(maxsize=1)
+def get_driver_assignment_repository() -> FirestoreDriverAssignmentRepository:
+    return FirestoreDriverAssignmentRepository()
+
+@app.post(
+    "/api/v1/optimized-routes/{route_id}/assign-driver",
+    response_model=OptimizedRoute, tags=["Driver assignment"],
+)
+def assign_optimized_route_driver(
+    route_id: str,
+    payload: AssignDriverRequest,
+    actor: UserContext = Depends(require_operator),
+    repo: FirestoreDriverAssignmentRepository = Depends(get_driver_assignment_repository),
+):
+    try:
+        return repo.assign(route_id, payload, operator_uid=actor.uid)
+    except DriverAssignmentMissing as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except DriverAssignmentConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+    except Exception:
+        raise HTTPException(status_code=503, detail="Driver assignment unavailable") from None
