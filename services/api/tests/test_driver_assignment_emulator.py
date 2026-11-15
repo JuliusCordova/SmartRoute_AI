@@ -86,3 +86,22 @@ def test_inactive_driver_causes_no_mutation(setup_assignment):
             operator_uid="synthetic-operator")
     assert db.collection("routes").document(route.id).get().to_dict()["driver_id"] is None
     assert not db.collection("driver_assignments").document(driver_id).get().exists
+
+
+def test_own_route_read_is_scoped_to_driver_uid(setup_assignment):
+    from app.driver_assignment import AssignDriverRequest
+    db, repo, route, driver_id = setup_assignment
+    assert repo.own_route(driver_uid=driver_id) is None
+    repo.assign(route.id, AssignDriverRequest(
+        driver_id=driver_id, expected_version=1, idempotency_key=uuid4()),
+        operator_uid="synthetic-operator")
+    db.collection("orders").document("order-1").set({
+        "route_id": route.id, "address_label": "Destino ficticio Lima",
+        "geo": {"latitude": -12.12, "longitude": -77.02},
+    })
+    own = repo.own_route(driver_uid=driver_id)
+    assert own is not None
+    assert own.id == route.id and own.status == "PLANNED"
+    assert [s.order_id for s in own.stops] == ["order-1"]
+    assert own.stops[0].address_label == "Destino ficticio Lima"
+    assert repo.own_route(driver_uid="synthetic-driver-other") is None
