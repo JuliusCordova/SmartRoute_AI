@@ -50,3 +50,9 @@ def require_operator(user: UserContext = Security(current_user)) -> UserContext:
     if user.role != "OPERATOR":
         raise HTTPException(status_code=403, detail="Operator role required")
     return user
+
+
+def require_driver(user: UserContext = Security(current_user)) -> UserContext:
+    if user.role != "DRIVER":
+        raise HTTPException(status_code=403, detail="Driver role required")
+    return user
