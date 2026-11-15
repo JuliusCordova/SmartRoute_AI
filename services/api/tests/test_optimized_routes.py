@@ -49,6 +49,10 @@ class FakeOptimizedRoutes:
             raise OptimizedRouteMissing("Route not found")
         return self.saved[route_id]
 
+    def detail(self, route_id):
+        from app.optimized_routes import OptimizedRouteDetail
+        return OptimizedRouteDetail(**self.get(route_id).model_dump(mode="python"))
+
     def list(self, *, limit, after):
         from app.optimized_routes import OptimizedRoutePage
         return OptimizedRoutePage(items=list(self.saved.values())[:limit])
