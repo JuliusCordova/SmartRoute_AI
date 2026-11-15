@@ -6,16 +6,18 @@ transaction; recheck order versions and coordinates before committing.
 from datetime import datetime, timezone
 from hashlib import sha256
 import json
+import os
 from uuid import uuid5, NAMESPACE_URL
+import httpx
 
 from google.cloud import firestore
 from .firestore_config import firestore_client
 from .orders import Geo
 from .optimized_routes import (
     OptimizedRoute, OptimizedRouteConflict, OptimizedRouteCreate,
-    OptimizedRouteMissing, OptimizedRoutePage,
+    OptimizedRouteMissing, OptimizedRoutePage, OptimizedRouteDetail, PersistedStop,
 )
-from .route_preview import PreviewRequest, StopPoint, compute_preview
+from .route_preview import PreviewRequest, StopPoint, compute_preview, ORS_DIRECTIONS
 
 
 def _payload_hash(payload: OptimizedRouteCreate) -> str:
@@ -36,6 +38,70 @@ class FirestoreOptimizedRouteRepository:
         if not snap.exists or (snap.to_dict() or {}).get("route_type") != "OPTIMIZED":
             raise OptimizedRouteMissing("Route not found")
         return OptimizedRoute.model_validate(snap.to_dict())
+
+    def detail(self, route_id: str) -> OptimizedRouteDetail:
+        """Resolve stop labels and road trace without changing the saved solution.
+
+        Legacy saved routes without snapshots use the current order records.
+        The original ordered_order_ids and estimated metrics are immutable.
+        """
+        route = self.get(route_id)
+        saved = self.db.collection("routes").document(route_id).get().to_dict() or {}
+        snapshots = saved.get("stop_snapshots") or []
+        by_id = {s["id"]: s for s in snapshots if isinstance(s, dict) and s.get("id")}
+        missing_ids = [oid for oid in route.ordered_order_ids if oid not in by_id]
+        if missing_ids:
+            refs = [self.db.collection("orders").document(oid) for oid in missing_ids]
+            for oid, snap in zip(missing_ids, (ref.get() for ref in refs)):
+                if snap.exists:
+                    doc = snap.to_dict() or {}
+                    by_id[oid] = {"id": oid, "address_label": doc.get("address_label") or oid, "geo": doc.get("geo")}
+
+        stops = []
+        warnings = []
+        for index, oid in enumerate(route.ordered_order_ids, start=1):
+            info = by_id.get(oid)
+            if not info or not info.get("geo"):
+                warnings.append("Some saved stops are unavailable; the route cannot be traced fully")
+                continue
+            stops.append(PersistedStop(
+                id=oid, address_label=info.get("address_label") or oid,
+                geo=Geo.model_validate(info["geo"]), sequence=index,
+            ))
+        road = None
+        origin = "schematic"
+        key = os.getenv("ORS_API_KEY")
+        if key and len(stops) == len(route.ordered_order_ids):
+            coords = [
+                [route.depot.longitude, route.depot.latitude],
+                *[[stop.geo.longitude, stop.geo.latitude] for stop in stops],
+                [route.depot.longitude, route.depot.latitude],
+            ]
+            try:
+                with httpx.Client(timeout=8.0) as client:
+                    resp = client.post(
+                        ORS_DIRECTIONS,
+                        json={"coordinates": coords},
+                        headers={"Authorization": key, "Content-Type": "application/json"},
+                    )
+                    resp.raise_for_status()
+                    features = resp.json().get("features", [])
+                coordinates = features[0]["geometry"]["coordinates"] if features else None
+                if (isinstance(coordinates, list) and 2 <= len(coordinates) <= 20000
+                    and all(isinstance(x, list) and len(x) >= 2 for x in coordinates)):
+                    road = [[float(x[0]), float(x[1])] for x in coordinates]
+                    origin = "openrouteservice"
+            except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError):
+                warnings.append("Road geometry unavailable; schematic connectors shown")
+        else:
+            warnings.append("Road geometry not requested; schematic connectors shown")
+        if road is None and not warnings:
+            warnings.append("Road geometry unavailable; schematic connectors shown")
+        return OptimizedRouteDetail(
+            **route.model_dump(mode="python"),
+            stops=stops, route_geometry=road, geometry_origin=origin,
+            detail_warnings=warnings,
+        )
 
     def list(self, *, limit: int, after: str | None) -> OptimizedRoutePage:
         coll = self.db.collection("routes")
@@ -92,7 +158,14 @@ class FirestoreOptimizedRouteRepository:
             matrix_provider=preview.matrix_provider, data_origin=preview.data_origin,
             warnings=preview.warnings, created_at=now, updated_at=now,
         )
-        route_record = {**route.model_dump(mode="python"), "request_hash": fingerprint}
+        route_record = {
+            **route.model_dump(mode="python"),
+            "request_hash": fingerprint,
+            "stop_snapshots": [
+                {"id": oid, "address_label": data["address_label"], "geo": data["geo"]}
+                for oid, data in zip(payload.order_ids, original)
+            ],
+        }
 
         @firestore.transactional
         def _commit(tx):
