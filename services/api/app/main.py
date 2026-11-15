@@ -1,6 +1,6 @@
 """SmartRoute API: US-003/004, Firebase auth and Firestore Standard."""
 from functools import lru_cache
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
 from .auth import UserContext, require_operator
 from .orders import Order, OrderCreate, OrderPage, new_order
 from .firestore_repo import FirestoreOrderRepository
@@ -99,3 +99,63 @@ from .geocoding import AddressSuggestions, lookup_addresses
 @app.get("/api/v1/geocoding/autocomplete", response_model=AddressSuggestions, tags=["Geocoding"])
 def autocomplete_address(q: str = Query(min_length=3, max_length=120), actor: UserContext = Depends(require_operator)):
     return lookup_addresses(q)
+
+
+# US-010: optimized route persistence; matrix is recomputed on private API.
+from .optimized_routes import (
+    OptimizedRoute, OptimizedRouteCreate, OptimizedRoutePage,
+    OptimizedRouteConflict, OptimizedRouteMissing,
+)
+from .firestore_optimized_routes import FirestoreOptimizedRouteRepository
+
+@lru_cache(maxsize=1)
+def get_optimized_route_repository() -> FirestoreOptimizedRouteRepository:
+    return FirestoreOptimizedRouteRepository()
+
+@app.post("/api/v1/optimized-routes", response_model=OptimizedRoute, status_code=201, tags=["Optimized routes"])
+def save_optimized_route(
+    payload: OptimizedRouteCreate,
+    response: Response,
+    actor: UserContext = Depends(require_operator),
+    repo: FirestoreOptimizedRouteRepository = Depends(get_optimized_route_repository),
+):
+    try:
+        route, created = repo.save(payload, actor_uid=actor.uid)
+    except OptimizedRouteMissing as exc:
+        raise HTTPException(404, str(exc)) from None
+    except OptimizedRouteConflict as exc:
+        raise HTTPException(409, str(exc)) from None
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(503, "Route storage unavailable") from None
+    if not created:
+        response.status_code = 200
+    return route
+
+@app.get("/api/v1/optimized-routes", response_model=OptimizedRoutePage, tags=["Optimized routes"])
+def list_optimized_routes(
+    limit: int = Query(default=20, ge=1, le=50),
+    cursor: str | None = Query(default=None, min_length=1, max_length=128),
+    actor: UserContext = Depends(require_operator),
+    repo: FirestoreOptimizedRouteRepository = Depends(get_optimized_route_repository),
+):
+    try:
+        return repo.list(limit=limit, after=cursor)
+    except ValueError:
+        raise HTTPException(422, "Invalid cursor") from None
+    except Exception:
+        raise HTTPException(503, "Route storage unavailable") from None
+
+@app.get("/api/v1/optimized-routes/{route_id}", response_model=OptimizedRoute, tags=["Optimized routes"])
+def get_optimized_route(
+    route_id: str,
+    actor: UserContext = Depends(require_operator),
+    repo: FirestoreOptimizedRouteRepository = Depends(get_optimized_route_repository),
+):
+    try:
+        return repo.get(route_id)
+    except OptimizedRouteMissing as exc:
+        raise HTTPException(404, str(exc)) from None
+    except Exception:
+        raise HTTPException(503, "Route storage unavailable") from None
