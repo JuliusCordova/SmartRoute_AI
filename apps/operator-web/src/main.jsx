@@ -213,7 +213,7 @@ function App(){
           <p className="fineprint">Origen: {savedRoute.data_origin}. Esta ruta aún no está asignada a un conductor.</p>
         </section>}
       </article>
-    </main><footer>SmartRoute AI · MVP académico · La ruta calculada es una previsualización y no se publica ni asigna automáticamente.</footer>
+    </main><footer>SmartRoute AI · MVP académico · La previsualización no reserva pedidos; al guardar se crea una ruta PLANNED, todavía sin conductor asignado.</footer>
   </div>;
 }
 createRoot(document.getElementById("root")).render(<App/>);
