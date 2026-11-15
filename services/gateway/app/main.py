@@ -26,6 +26,7 @@ ASSIGN_DRIVER_PATH = re.compile(r"^/api/v1/optimized-routes/[0-9a-fA-F-]{36}/ass
 MAX_BODY = 16_384
 ALLOWED = {
     ("GET", "/api/v1/orders"),
+    ("GET", "/api/v1/driver/me/route"),
     ("POST", "/api/v1/orders"),
     ("POST", "/api/v1/routes"),
     ("POST", "/api/v1/optimization/preview"),
