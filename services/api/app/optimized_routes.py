@@ -56,3 +56,18 @@ class OptimizedRouteConflict(Exception):
 
 class OptimizedRouteMissing(Exception):
     """Requested order or route is missing."""
+
+
+class PersistedStop(BaseModel):
+    id: str
+    address_label: str
+    geo: Geo
+    sequence: int = Field(ge=1)
+
+
+class OptimizedRouteDetail(OptimizedRoute):
+    """Read model; the stored order and metrics are never recomputed."""
+    stops: list[PersistedStop] = Field(default_factory=list)
+    route_geometry: list[list[float]] | None = None
+    geometry_origin: Literal["openrouteservice", "schematic"] = "schematic"
+    detail_warnings: list[str] = Field(default_factory=list)
