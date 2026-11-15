@@ -27,6 +27,7 @@ MAX_BODY = 16_384
 ALLOWED = {
     ("GET", "/api/v1/orders"),
     ("GET", "/api/v1/driver/me/route"),
+    ("GET", "/api/v1/drivers"),
     ("POST", "/api/v1/orders"),
     ("POST", "/api/v1/routes"),
     ("POST", "/api/v1/optimization/preview"),
