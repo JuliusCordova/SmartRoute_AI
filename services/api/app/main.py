@@ -162,7 +162,7 @@ def get_optimized_route(
 
 
 # US-011: driver assignment, only callable by an authenticated OPERATOR.
-from .driver_assignment import AssignDriverRequest, DriverRoute
+from .driver_assignment import AssignDriverRequest, DriverRoute, DriverPage
 from .firestore_driver_assignment import (
     FirestoreDriverAssignmentRepository, DriverAssignmentConflict,
     DriverAssignmentMissing,
@@ -210,3 +210,21 @@ def get_my_driver_route(
         # response-model serialization for the no-assignment case.
         return Response(status_code=204)
     return route
+
+
+@app.get("/api/v1/drivers", response_model=DriverPage, tags=["Driver assignment"])
+def list_available_drivers(
+    available: bool = Query(default=True),
+    limit: int = Query(default=20, ge=1, le=20),
+    cursor: str | None = Query(default=None, min_length=1, max_length=128),
+    actor: UserContext = Depends(require_operator),
+    repo: FirestoreDriverAssignmentRepository = Depends(get_driver_assignment_repository),
+):
+    if not available:
+        raise HTTPException(status_code=422, detail="Only available drivers can be listed")
+    try:
+        return repo.list_available(limit=limit, after=cursor)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid driver cursor") from None
+    except Exception:
+        raise HTTPException(status_code=503, detail="Driver list unavailable") from None
