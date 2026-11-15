@@ -9,7 +9,7 @@ from hashlib import sha256
 import json
 
 from google.cloud import firestore
-from .driver_assignment import AssignDriverRequest
+from .driver_assignment import AssignDriverRequest, DriverRoute, DriverStop
 from .firestore_config import firestore_client
 from .optimized_routes import OptimizedRoute
 
@@ -112,3 +112,67 @@ class FirestoreDriverAssignmentRepository:
             })
 
         return _commit(self.db.transaction())
+
+
+    def own_route(self, *, driver_uid: str) -> DriverRoute | None:
+        """Read only via trusted UID extracted from a verified Firebase DRIVER.
+
+        Lookup is keyed by driver_assignments/{uid}, never by caller-supplied
+        route ID. No ORS calls, mutation, or global collection listing.
+        """
+        if not driver_uid or "/" in driver_uid or len(driver_uid) > 128:
+            raise DriverAssignmentConflict("Invalid driver identity")
+        occupancy = self.db.collection("driver_assignments").document(driver_uid).get()
+        if not occupancy.exists:
+            return None
+        reservation = occupancy.to_dict() or {}
+        route_id = reservation.get("route_id")
+        if (reservation.get("driver_id") != driver_uid
+            or reservation.get("status") != "RESERVED"
+            or not isinstance(route_id, str) or not route_id or "/" in route_id):
+            raise DriverAssignmentConflict("Invalid driver reservation")
+        snap = self.db.collection("routes").document(route_id).get()
+        if not snap.exists:
+            raise DriverAssignmentConflict("Assigned route is unavailable")
+        route = snap.to_dict() or {}
+        if (route.get("driver_id") != driver_uid
+            or route.get("route_type") != "OPTIMIZED"
+            or route.get("status") not in ("PLANNED", "ACTIVE")):
+            raise DriverAssignmentConflict("Assigned route is not accessible")
+
+        ordered_ids = route.get("ordered_order_ids") or []
+        if (not 1 <= len(ordered_ids) <= 10
+            or len(set(ordered_ids)) != len(ordered_ids)):
+            raise DriverAssignmentConflict("Invalid saved route stops")
+        snapshots = route.get("stop_snapshots") or []
+        by_id = {x["id"]: x for x in snapshots
+                 if isinstance(x, dict) and isinstance(x.get("id"), str)}
+        # Legacy route saved before the snapshot implementation: resolve only
+        # the exact orders belonging to the assigned route.
+        for oid in ordered_ids:
+            if oid not in by_id:
+                order_snap = self.db.collection("orders").document(oid).get()
+                if not order_snap.exists:
+                    raise DriverAssignmentConflict("Assigned stop not found")
+                data = order_snap.to_dict() or {}
+                if data.get("route_id") != route_id:
+                    raise DriverAssignmentConflict("Stop does not belong to route")
+                by_id[oid] = {
+                    "id": oid, "address_label": data.get("address_label"),
+                    "geo": data.get("geo"),
+                }
+        try:
+            stops = [DriverStop(
+                sequence=index, order_id=oid,
+                address_label=by_id[oid]["address_label"],
+                geo=by_id[oid]["geo"],
+            ) for index, oid in enumerate(ordered_ids, start=1)]
+            return DriverRoute(
+                id=route_id, status=route["status"],
+                depot=route["depot"], stops=stops,
+                optimized_seconds=route["optimized_seconds"],
+                optimized_meters=route["optimized_meters"],
+                assigned_at=route.get("assigned_at"),
+            )
+        except (KeyError, ValueError, TypeError) as exc:
+            raise DriverAssignmentConflict("Invalid assigned route data") from exc
