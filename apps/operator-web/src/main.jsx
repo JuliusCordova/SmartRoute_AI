@@ -23,7 +23,7 @@ async function api(path, method, token, data){
   return body;
 }
 
-function MapPanel({orders,depot,preview,chosen}){
+function MapPanel({orders,depot,preview,chosen,savedRoute}){
   const ref=useRef(null), map=useRef(null), layers=useRef(null);
   useEffect(()=>{
     if(!ref.current)return;
@@ -38,7 +38,29 @@ function MapPanel({orders,depot,preview,chosen}){
   useEffect(()=>{
     if(!map.current||!layers.current)return;
     const group=layers.current;group.clearLayers();
-  const selected=orders.filter(o=>o.checked);
+    if(savedRoute){
+      const d=[savedRoute.depot.latitude,savedRoute.depot.longitude];
+      const path=[d];
+      L.circleMarker(d,{radius:10,color:"#102739",fillColor:"#f0b43d",fillOpacity:1})
+        .bindPopup("Depósito de ruta guardada").addTo(group);
+      (savedRoute.stops||[]).forEach(stop=>{
+        const position=[stop.geo.latitude,stop.geo.longitude];
+        path.push(position);
+        L.circleMarker(position,{radius:9,color:"#143d4b",fillColor:"#31a8b4",fillOpacity:1})
+          .bindPopup(stop.sequence+". "+stop.address_label).addTo(group);
+      });
+      path.push(d);
+      if(savedRoute.route_geometry?.length){
+        L.polyline(savedRoute.route_geometry.map(([lng,lat])=>[lat,lng]),
+          {color:"#e5a219",weight:5,opacity:.9}).addTo(group);
+      }else if(path.length>2){
+        L.polyline(path,{color:"#e5a219",weight:4,dashArray:"7 8"}).addTo(group);
+      }
+      if(path.length>2)map.current.fitBounds(L.latLngBounds(path).pad(.25),{maxZoom:14});
+      else map.current.setView(d,13);
+      return;
+    }
+    const selected=orders.filter(o=>o.checked);
     const valid=selected.filter(o=>inside(o.geo.latitude,o.geo.longitude));
     const points=[[Number(depot.latitude),Number(depot.longitude)]];
     if(inside(...points[0]))L.circleMarker(points[0],{radius:9,color:"#102739",fillColor:"#f0b43d",fillOpacity:1}).bindPopup("Depósito").addTo(group);
@@ -62,8 +84,8 @@ function MapPanel({orders,depot,preview,chosen}){
       L.polyline([...points,points[0]],{color:"#758c9d",weight:2,dashArray:"5 7"}).addTo(group);
     }
     if(points.length>1) map.current.fitBounds(L.latLngBounds(points).pad(.25),{maxZoom:14});
-  },[orders,depot,preview,chosen]);
-  return <div className="mapWrap"><div ref={ref} className="map" /><span className="mapCaption">{preview ? (preview.route_geometry?"Recorrido vial estimado":"Conectores esquemáticos; matriz vial estimada"):"Orden original · conectores esquemáticos"}</span></div>;
+  },[orders,depot,preview,chosen,savedRoute]);
+  return <div className="mapWrap"><div ref={ref} className="map" /><span className="mapCaption">{savedRoute ? (savedRoute.geometry_origin==="openrouteservice"?"Ruta guardada · recorrido vial estimado":"Ruta guardada · conectores esquemáticos, NO recorrido vial") : preview ? (preview.route_geometry?"Recorrido vial estimado":"Conectores esquemáticos; matriz vial estimada"):"Orden original · conectores esquemáticos"}</span></div>;
 }
 
 function App(){
@@ -113,13 +135,19 @@ function App(){
       depot:{id:"depot",latitude:Number(depot.latitude),longitude:Number(depot.longitude)},
       stops:picked.map(o=>({id:o.id,latitude:o.geo.latitude,longitude:o.geo.longitude}))
     });
-    setPreview(p);pendingSaveKey.current=crypto.randomUUID();setStatus("Secuencia optimizada con matriz vial. Resultado estimado, no observado.");
+    setPreview(p);setSavedRoute(null);pendingSaveKey.current=crypto.randomUUID();setStatus("Secuencia optimizada con matriz vial. Resultado estimado, no observado.");
   });
     const refreshSaved=()=>run(async()=>{
     const x=await api("/api/v1/optimized-routes?limit=20","GET",await token());
     setSavedRoutes(x.items||[]);
     setStatus((x.items||[]).length+" rutas optimizadas recuperadas de Firestore.");
   });
+  async function showSavedRoute(id){
+    const detail=await api("/api/v1/optimized-routes/"+encodeURIComponent(id),"GET",await token());
+    setSavedRoute(detail);
+    setPreview(null);
+    setStatus("Ruta "+detail.id.slice(0,8)+" recuperada con "+detail.stops.length+" paradas en secuencia.");
+  }
   const saveOptimized=()=>run(async()=>{
     if(!preview || !pendingSaveKey.current) throw new Error("Primero optimiza los pedidos");
     const picked=orders.filter(o=>o.checked);
@@ -139,6 +167,8 @@ function App(){
     setOrders(ordersResult.items.map(o=>({...o,checked:false})));
     setSavedRoutes(routesResult.items||[]);
     setStatus("Ruta "+saved.id.slice(0,8)+" guardada en Firestore como PLANNED. Pedidos reservados.");
+    try { await showSavedRoute(saved.id); }
+    catch { setStatus("Ruta guardada; vuelve a seleccionarla en Rutas guardadas para ver el mapa."); }
   });
   const selected=orders.filter(o=>o.checked);
   return <div className="app">
@@ -186,14 +216,14 @@ function App(){
           <p>Rutas PLANNED guardadas en Firestore. No están asignadas a un conductor.</p>
           {savedRoutes.length? <div className="orders">{savedRoutes.map(r=>
             <button className="outline" style={{textAlign:"left",width:"100%",marginBottom:8}} key={r.id}
-              onClick={()=>setSavedRoute(r)}>
+              onClick={()=>run(()=>showSavedRoute(r.id))}>
               {r.id.slice(0,8)} · {r.order_ids.length} entregas · {mins(r.optimized_seconds)} · {km(r.optimized_meters)}
             </button>
           )}</div> : <p className="empty">No se han consultado rutas. Pulsa Actualizar rutas.</p>}
         </section>
       </aside>
       <article>
-        <section className="panel mapSection"><div className="panelhead"><div><h2>Mapa de operaciones</h2><p>OpenStreetMap · puntos seleccionados · recorridos</p></div><span className="count">Lima, Perú</span></div><MapPanel orders={orders} depot={depot} preview={preview} chosen={form.latitude===null?null:{...form,label:form.address_label}}/></section>
+        <section className="panel mapSection"><div className="panelhead"><div><h2>Mapa de operaciones</h2><p>OpenStreetMap · puntos seleccionados · recorridos</p></div><span className="count">Lima, Perú</span></div><MapPanel orders={orders} depot={depot} preview={preview} savedRoute={savedRoute} chosen={form.latitude===null?null:{...form,label:form.address_label}}/></section>
         <section className="panel results"><div className="panelhead"><h2>03 · Comparación</h2><span className="count">{preview?"ESTIMADO":"PENDIENTE DE CÁLCULO"}</span></div>
           {preview?<><div className="metrics">
             <div className="metric"><small>Orden original</small><strong>{mins(preview.baseline_seconds)}</strong><span>{km(preview.baseline_meters)}</span></div>
@@ -209,7 +239,9 @@ function App(){
             <div className="metric chosen"><small>Ruta guardada</small><strong>{mins(savedRoute.optimized_seconds)}</strong><span>{km(savedRoute.optimized_meters)}</span></div>
             <div className="metric"><small>Mejora estimada</small><strong>{savedRoute.improvement_pct.toFixed(2)}%</strong><span>openrouteservice</span></div>
           </div>
-          <div className="sequence"><b>Secuencia persistida:</b> {savedRoute.ordered_order_ids.join(" → ")}</div>
+          <div className="sequence"><b>Secuencia persistida:</b> Depósito → {(savedRoute.stops?.length?savedRoute.stops.map(s=>s.sequence+". "+s.address_label):savedRoute.ordered_order_ids).join(" → ")} → Depósito</div>
+          <p className="fineprint">Mapa: {savedRoute.geometry_origin==="openrouteservice"?"trazado vial estimado de openrouteservice":"conectores esquemáticos entre paradas; no representan la vialidad"}.</p>
+          {savedRoute.detail_warnings?.length>0&&<p className="fineprint">{savedRoute.detail_warnings.join(". ")}</p>}
           <p className="fineprint">Origen: {savedRoute.data_origin}. Esta ruta aún no está asignada a un conductor.</p>
         </section>}
       </article>
