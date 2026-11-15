@@ -105,3 +105,16 @@ def test_own_route_read_is_scoped_to_driver_uid(setup_assignment):
     assert [s.order_id for s in own.stops] == ["order-1"]
     assert own.stops[0].address_label == "Destino ficticio Lima"
     assert repo.own_route(driver_uid="synthetic-driver-other") is None
+
+
+def test_candidate_listing_filters_role_active_and_occupied(setup_assignment):
+    from app.driver_assignment import AssignDriverRequest
+    db, repo, route, driver_id = setup_assignment
+    before = repo.list_available(limit=20)
+    assert any(x.uid == driver_id for x in before.items)
+    repo.assign(route.id, AssignDriverRequest(
+        driver_id=driver_id, expected_version=1, idempotency_key=uuid4()),
+        operator_uid="synthetic-operator")
+    after = repo.list_available(limit=20)
+    assert not any(x.uid == driver_id for x in after.items)
+    assert all(x.active and x.available for x in after.items)
