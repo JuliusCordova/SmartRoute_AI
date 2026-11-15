@@ -25,7 +25,9 @@ class OptimizedRoute(BaseModel):
     id: str
     route_type: Literal["OPTIMIZED"] = "OPTIMIZED"
     status: Literal["PLANNED"] = "PLANNED"
-    driver_id: None = None
+    driver_id: str | None = None
+    assigned_by: str | None = None
+    assigned_at: datetime | None = None
     created_by: str
     depot: Geo
     order_ids: list[str]
