@@ -1,7 +1,7 @@
 """SmartRoute API: US-003/004, Firebase auth and Firestore Standard."""
 from functools import lru_cache
 from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
-from .auth import UserContext, require_operator
+from .auth import UserContext, require_operator, require_driver
 from .orders import Order, OrderCreate, OrderPage, new_order
 from .firestore_repo import FirestoreOrderRepository
 
@@ -159,3 +159,72 @@ def get_optimized_route(
         raise HTTPException(404, str(exc)) from None
     except Exception:
         raise HTTPException(503, "Route storage unavailable") from None
+
+
+# US-011: driver assignment, only callable by an authenticated OPERATOR.
+from .driver_assignment import AssignDriverRequest, DriverRoute, DriverPage
+from .firestore_driver_assignment import (
+    FirestoreDriverAssignmentRepository, DriverAssignmentConflict,
+    DriverAssignmentMissing,
+)
+
+@lru_cache(maxsize=1)
+def get_driver_assignment_repository() -> FirestoreDriverAssignmentRepository:
+    return FirestoreDriverAssignmentRepository()
+
+@app.post(
+    "/api/v1/optimized-routes/{route_id}/assign-driver",
+    response_model=OptimizedRoute, tags=["Driver assignment"],
+)
+def assign_optimized_route_driver(
+    route_id: str,
+    payload: AssignDriverRequest,
+    actor: UserContext = Depends(require_operator),
+    repo: FirestoreDriverAssignmentRepository = Depends(get_driver_assignment_repository),
+):
+    try:
+        return repo.assign(route_id, payload, operator_uid=actor.uid)
+    except DriverAssignmentMissing as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except DriverAssignmentConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+    except Exception:
+        raise HTTPException(status_code=503, detail="Driver assignment unavailable") from None
+
+
+@app.get("/api/v1/driver/me/route", response_model=DriverRoute,
+         responses={204: {"description": "No route assigned"}}, tags=["Driver route"])
+def get_my_driver_route(
+    response: Response,
+    actor: UserContext = Depends(require_driver),
+    repo: FirestoreDriverAssignmentRepository = Depends(get_driver_assignment_repository),
+):
+    try:
+        route = repo.own_route(driver_uid=actor.uid)
+    except DriverAssignmentConflict:
+        raise HTTPException(status_code=409, detail="Assigned route unavailable") from None
+    except Exception:
+        raise HTTPException(status_code=503, detail="Driver route unavailable") from None
+    if route is None:
+        # Return an actual empty HTTP response, bypassing DriverRoute
+        # response-model serialization for the no-assignment case.
+        return Response(status_code=204)
+    return route
+
+
+@app.get("/api/v1/drivers", response_model=DriverPage, tags=["Driver assignment"])
+def list_available_drivers(
+    available: bool = Query(default=True),
+    limit: int = Query(default=20, ge=1, le=20),
+    cursor: str | None = Query(default=None, min_length=1, max_length=128),
+    actor: UserContext = Depends(require_operator),
+    repo: FirestoreDriverAssignmentRepository = Depends(get_driver_assignment_repository),
+):
+    if not available:
+        raise HTTPException(status_code=422, detail="Only available drivers can be listed")
+    try:
+        return repo.list_available(limit=limit, after=cursor)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid driver cursor") from None
+    except Exception:
+        raise HTTPException(status_code=503, detail="Driver list unavailable") from None

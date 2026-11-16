@@ -22,9 +22,12 @@ ORDER_PATH = re.compile(r"^/api/v1/orders$")
 ROUTE_PATH = re.compile(r"^/api/v1/routes$")
 ASSIGN_PATH = re.compile(r"^/api/v1/routes/[0-9a-fA-F-]{36}/orders$")
 OPTIMIZED_GET_PATH = re.compile(r"^/api/v1/optimized-routes/[0-9a-fA-F-]{36}$")
+ASSIGN_DRIVER_PATH = re.compile(r"^/api/v1/optimized-routes/[0-9a-fA-F-]{36}/assign-driver$")
 MAX_BODY = 16_384
 ALLOWED = {
     ("GET", "/api/v1/orders"),
+    ("GET", "/api/v1/driver/me/route"),
+    ("GET", "/api/v1/drivers"),
     ("POST", "/api/v1/orders"),
     ("POST", "/api/v1/routes"),
     ("POST", "/api/v1/optimization/preview"),
@@ -88,7 +91,8 @@ async def proxy(path: str, request: Request):
     target_path = "/api/v1/" + path
     if ((request.method, target_path) not in ALLOWED
             and not (request.method == "POST" and ASSIGN_PATH.fullmatch(target_path))
-            and not (request.method == "GET" and OPTIMIZED_GET_PATH.fullmatch(target_path))):
+            and not (request.method == "GET" and OPTIMIZED_GET_PATH.fullmatch(target_path))
+            and not (request.method == "POST" and ASSIGN_DRIVER_PATH.fullmatch(target_path))):
         raise HTTPException(404, "Endpoint not supported")
 
     # A native client may omit Origin. Browser cross-origin access is denied
@@ -155,6 +159,7 @@ def preflight(path: str, request: Request):
         (method, target_path) not in ALLOWED
         and not (method == "POST" and ASSIGN_PATH.fullmatch(target_path))
         and not (method == "GET" and OPTIMIZED_GET_PATH.fullmatch(target_path))
+        and not (method == "POST" and ASSIGN_DRIVER_PATH.fullmatch(target_path))
     ):
         raise HTTPException(403, "CORS preflight not allowed")
     return Response(status_code=204, headers={

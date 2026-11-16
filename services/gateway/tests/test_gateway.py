@@ -91,3 +91,22 @@ def test_preflight_allowed_origin_only():
         bad = client.options("/api/v1/orders",
             headers={"Origin": "https://not-allowed.example", "Access-Control-Request-Method": "POST"})
         assert bad.status_code == 403
+
+
+def test_driver_own_route_requires_firebase_and_has_strict_allowlist():
+    with patch.dict(os.environ, ENV), patch("app.main.private_id_token") as mint:
+        assert client.get("/api/v1/driver/me/route").status_code == 401
+        assert client.get("/api/v1/driver/another/route").status_code == 404
+        mint.assert_not_called()
+
+
+def test_driver_own_route_cors_preflight():
+    with patch.dict(os.environ, ENV):
+        accepted = client.options("/api/v1/driver/me/route", headers={
+            "Origin": "https://example.org", "Access-Control-Request-Method": "GET",
+        })
+        assert accepted.status_code == 204
+        rejected = client.options("/api/v1/driver/me/route", headers={
+            "Origin": "https://attacker.example", "Access-Control-Request-Method": "GET",
+        })
+        assert rejected.status_code == 403

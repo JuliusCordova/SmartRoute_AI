@@ -10,3 +10,7 @@
 .location-ok{background:#e3f5eb;color:#286043}
 .location-warning{background:#fff2ce;color:#76520b}
 .location-confirm{display:flex;gap:8px;align-items:center;font-weight:600;color:#76520b}
+
+.driverPicker{display:block;margin-top:14px;color:#48606e;font-size:12px;font-weight:650}
+.driverPicker select{display:block;margin-top:6px;width:100%;padding:11px;border:1px solid #bfcbd2;border-radius:8px;background:#fff;color:#173d50;font:inherit}
+.driverPicker select:disabled{opacity:.6}
