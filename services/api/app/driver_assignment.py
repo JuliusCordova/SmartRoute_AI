@@ -46,6 +46,7 @@ class DriverRoute(BaseModel):
     """Safe projection; only returned for the Firebase UID of the caller."""
     id: str
     status: Literal["PLANNED", "ACTIVE"]
+    version: int = Field(ge=1)
     depot: Geo
     stops: list[DriverStop] = Field(min_length=1, max_length=10)
     optimized_seconds: int = Field(ge=0)
