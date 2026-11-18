@@ -52,3 +52,4 @@ class DriverRoute(BaseModel):
     optimized_meters: int = Field(ge=0)
     data_origin: Literal["estimated"] = "estimated"
     assigned_at: datetime | None = None
+    started_at: datetime | None = None
