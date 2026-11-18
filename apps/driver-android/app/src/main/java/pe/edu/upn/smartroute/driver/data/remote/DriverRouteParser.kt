@@ -61,6 +61,7 @@ object DriverRouteParser {
             driverId = driverId,
             depot = Depot(name = "Depósito", address = null, location = geo(o.getJSONObject("depot"))),
             stops = stops,
+            version = if (o.has("version")) o.getInt("version").also { require(it >= 1) } else null,
             metrics = RouteMetrics(
                 distanceKm = (meters / 100.0).roundToInt() / 10.0,
                 durationMinutes = (seconds / 60.0).roundToInt(),
