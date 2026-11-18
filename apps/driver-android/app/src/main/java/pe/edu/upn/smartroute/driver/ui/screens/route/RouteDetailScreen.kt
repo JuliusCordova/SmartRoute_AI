@@ -14,6 +14,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -24,6 +27,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -32,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pe.edu.upn.smartroute.driver.domain.model.DeliveryStop
 import pe.edu.upn.smartroute.driver.domain.model.Route
+import pe.edu.upn.smartroute.driver.domain.model.RouteStatus
 import pe.edu.upn.smartroute.driver.ui.UiState
 import pe.edu.upn.smartroute.driver.ui.components.DemoDataBanner
 import pe.edu.upn.smartroute.driver.ui.components.LoadingView
@@ -53,6 +60,9 @@ fun RouteDetailScreen(
     onOpenStop: (String) -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val starting by viewModel.starting.collectAsStateWithLifecycle()
+    val startError by viewModel.startError.collectAsStateWithLifecycle()
+    var confirmStart by remember { mutableStateOf(false) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -75,9 +85,46 @@ fun RouteDetailScreen(
                 UiState.Loading -> LoadingView()
                 is UiState.Error -> MessageView(s.message, "Reintentar", viewModel::load)
                 is UiState.NotFound -> MessageView(s.message, "Volver", onBack)
-                is UiState.Success -> RouteContent(s.data, onOpenStop)
+                is UiState.Success -> {
+                    if (!viewModel.isDemoData && s.data.status == RouteStatus.PLANNED) {
+                        if (s.data.version != null) {
+                            Button(
+                                onClick = { confirmStart = true },
+                                enabled = !starting,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                            ) { Text(if (starting) "Iniciando recorrido..." else "Iniciar recorrido") }
+                        } else {
+                            Text(
+                                "Inicio no disponible: el gateway debe publicar la versión de la ruta.",
+                                modifier = Modifier.padding(16.dp),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
+                    if (startError != null) {
+                        Text(startError.orEmpty(), color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(horizontal = 16.dp))
+                    }
+                    RouteContent(s.data, onOpenStop)
+                }
             }
         }
+    }
+    if (confirmStart) {
+        AlertDialog(
+            onDismissRequest = { confirmStart = false },
+            title = { Text("¿Iniciar este recorrido?") },
+            text = { Text("La ruta pasará de PLANNED a ACTIVE y quedará registrada en GCP. Esta acción no confirma entregas.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmStart = false
+                    viewModel.startRoute()
+                }) { Text("Confirmar inicio") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmStart = false }) { Text("Cancelar") }
+            },
+        )
     }
 }
 
