@@ -228,3 +228,31 @@ def list_available_drivers(
         raise HTTPException(status_code=422, detail="Invalid driver cursor") from None
     except Exception:
         raise HTTPException(status_code=503, detail="Driver list unavailable") from None
+
+
+# US-012: start only the authenticated DRIVER's reserved optimized route.
+from .route_execution import (
+    StartRouteRequest, RouteExecutionResult,
+    RouteExecutionMissing, RouteExecutionConflict,
+)
+from .firestore_route_execution import FirestoreRouteExecutionRepository
+
+@lru_cache(maxsize=1)
+def get_route_execution_repository() -> FirestoreRouteExecutionRepository:
+    return FirestoreRouteExecutionRepository()
+
+@app.post("/api/v1/driver/me/route/start", response_model=RouteExecutionResult,
+          tags=["Route execution"])
+def start_my_driver_route(
+    payload: StartRouteRequest,
+    actor: UserContext = Depends(require_driver),
+    repo: FirestoreRouteExecutionRepository = Depends(get_route_execution_repository),
+):
+    try:
+        return repo.start(driver_uid=actor.uid, payload=payload)
+    except RouteExecutionMissing as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except RouteExecutionConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+    except Exception:
+        raise HTTPException(status_code=503, detail="Route execution unavailable") from None

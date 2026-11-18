@@ -127,3 +127,19 @@ def test_authorization_required_for_all_endpoints():
             assert client.get("/api/v1/optimized-routes").status_code == 403
     finally:
         app.dependency_overrides.clear()
+
+
+def test_active_route_is_readable_by_operator_after_driver_start():
+    from app.optimized_routes import OptimizedRoutePage, OptimizedRouteDetail
+    route = example_route(["o1", "o2"])
+    active = route.model_dump(mode="python")
+    active["status"] = "ACTIVE"
+    active["driver_id"] = "synthetic-driver"
+    active["started_by"] = "synthetic-driver"
+    active["started_at"] = datetime.now(timezone.utc)
+    listed = OptimizedRoutePage(items=[active])
+    assert listed.items[0].status == "ACTIVE"
+    assert listed.items[0].started_at == active["started_at"]
+    detailed = OptimizedRouteDetail(**active)
+    assert detailed.status == "ACTIVE"
+    assert detailed.started_by == "synthetic-driver"
