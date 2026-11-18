@@ -248,11 +248,11 @@ function App(){
         </section>
         <section className="panel">
           <div className="panelhead"><h2>04 · Rutas guardadas</h2><button className="outline" disabled={!user||busy} onClick={refreshSaved}>Actualizar rutas</button></div>
-          <p>Rutas PLANNED guardadas en Firestore. Pueden estar pendientes de conductor o ya asignadas.</p>
+          <p>Rutas optimizadas guardadas en Firestore: PLANNED (planificadas), ACTIVE (en recorrido) y COMPLETED (finalizadas).</p>
           {savedRoutes.length? <div className="orders">{savedRoutes.map(r=>
             <button className="outline" style={{textAlign:"left",width:"100%",marginBottom:8}} key={r.id}
               onClick={()=>run(()=>showSavedRoute(r.id))}>
-              {r.id.slice(0,8)} · {r.order_ids.length} entregas · {mins(r.optimized_seconds)} · {km(r.optimized_meters)} · {r.driver_id?"Asignada":"Sin conductor"}
+              {r.id.slice(0,8)} · {r.order_ids.length} entregas · {mins(r.optimized_seconds)} · {km(r.optimized_meters)} · {r.status} · {r.driver_id?"Asignada":"Sin conductor"}
             </button>
           )}</div> : <p className="empty">No se han consultado rutas. Pulsa Actualizar rutas.</p>}
         </section>
@@ -267,7 +267,7 @@ function App(){
           </div><div className="sequence"><b>Secuencia calculada:</b> Depósito → {preview.ordered_order_ids.map(id=>orders.find(o=>o.id===id)?.address_label||id).join(" → ")} → Depósito</div><p className="fineprint">Fuente: {preview.matrix_provider} · Huella matriz: {preview.matrix_fingerprint.slice(0,12)}… · {preview.warnings.join(". ")}. No hay ahorro real observado.</p></>:<div className="empty">Selecciona pedidos y solicita una optimización para comparar recorridos. No se genera ninguna cifra sin datos de la matriz vial.</div>}
         </section>
         {savedRoute&&<section className="panel results">
-          <div className="panelhead"><h2>05 · Ruta persistida</h2><span className="count">{savedRoute.status}</span></div>
+          <div className="panelhead"><h2>05 · Ruta persistida</h2><div><span className="count">{savedRoute.status}</span> <button className="outline" disabled={!user||busy} onClick={()=>run(()=>showSavedRoute(savedRoute.id))}>Actualizar estado</button></div></div>
           <p><strong>ID:</strong> {savedRoute.id}</p>
           <div className="metrics">
             <div className="metric"><small>Orden original</small><strong>{mins(savedRoute.baseline_seconds)}</strong><span>{km(savedRoute.baseline_meters)}</span></div>
@@ -277,11 +277,12 @@ function App(){
           <div className="sequence"><b>Secuencia persistida:</b> Depósito → {(savedRoute.stops?.length?savedRoute.stops.map(s=>s.sequence+". "+s.address_label):savedRoute.ordered_order_ids).join(" → ")} → Depósito</div>
           <p className="fineprint">Mapa: {savedRoute.geometry_origin==="openrouteservice"?"trazado vial estimado de openrouteservice":"conectores esquemáticos entre paradas; no representan la vialidad"}.</p>
           {savedRoute.detail_warnings?.length>0&&<p className="fineprint">{savedRoute.detail_warnings.join(". ")}</p>}
-          <p className="fineprint">Origen: {savedRoute.data_origin}. {savedRoute.driver_id?"Conductor asignado: "+savedRoute.driver_id+" · pendiente de activación.":"Esta ruta aún no está asignada a un conductor."}</p>
+          <p className="fineprint">Origen: {savedRoute.data_origin}. {savedRoute.driver_id?"Conductor asignado: "+savedRoute.driver_id+" · "+(savedRoute.status==="ACTIVE"?"recorrido iniciado.":savedRoute.status==="COMPLETED"?"recorrido finalizado.":"pendiente de activación."):"Esta ruta aún no está asignada a un conductor."}</p>
+          {savedRoute.started_at&&<p className="fineprint">Inicio registrado: {new Date(savedRoute.started_at).toLocaleString("es-PE")} · versión {savedRoute.version}. Las métricas mostradas siguen siendo estimaciones, no tiempos observados.</p>}
         </section>}
         {savedRoute&&<section className="panel results">
           <div className="panelhead"><h2>06 · Asignar conductor</h2><span className="count">{savedRoute.driver_id?"ASIGNADA":"PENDIENTE"}</span></div>
-          {savedRoute.driver_id?<p>Ruta asignada a un conductor. Continúa en estado PLANNED hasta su activación.</p>:<>
+          {savedRoute.driver_id?<p>Ruta asignada a un conductor. {savedRoute.status==="ACTIVE"?"El conductor inició el recorrido; seguimiento en modo consulta.":savedRoute.status==="COMPLETED"?"Recorrido finalizado.":"Continúa en estado PLANNED hasta que el conductor lo inicie."}</p>:<>
             <p>Selecciona un conductor activo y disponible. La asignación será validada de forma transaccional.</p>
             <button className="outline" disabled={!user||busy} onClick={loadDrivers}>Consultar conductores disponibles</button>
             <label className="driverPicker">Conductor
