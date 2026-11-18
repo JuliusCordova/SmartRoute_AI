@@ -28,6 +28,8 @@ class OptimizedRoute(BaseModel):
     driver_id: str | None = None
     assigned_by: str | None = None
     assigned_at: datetime | None = None
+    started_at: datetime | None = None
+    started_by: str | None = None
     created_by: str
     depot: Geo
     order_ids: list[str]
