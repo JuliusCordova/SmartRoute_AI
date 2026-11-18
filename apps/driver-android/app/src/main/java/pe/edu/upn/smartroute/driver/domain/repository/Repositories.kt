@@ -16,6 +16,11 @@ interface RouteRepository {
     suspend fun getAssignedRoutes(driverId: String): List<Route>
 
     suspend fun getRoute(routeId: String): Route?
+
+    /** US-012: mutación explícita, solo disponible para DRIVER autenticado y versión conocida. */
+    suspend fun startRoute(routeId: String, expectedVersion: Int, idempotencyKey: String): Route {
+        throw UnsupportedOperationException("Inicio no disponible en modo demostración")
+    }
 }
 
 /** Fuente de la credencial de Google. La implementa la capa de UI porque necesita una Activity. */
