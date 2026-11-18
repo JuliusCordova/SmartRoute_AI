@@ -24,7 +24,7 @@ class OptimizedRouteCreate(BaseModel):
 class OptimizedRoute(BaseModel):
     id: str
     route_type: Literal["OPTIMIZED"] = "OPTIMIZED"
-    status: Literal["PLANNED"] = "PLANNED"
+    status: Literal["PLANNED", "ACTIVE", "COMPLETED"] = "PLANNED"
     driver_id: str | None = None
     assigned_by: str | None = None
     assigned_at: datetime | None = None
