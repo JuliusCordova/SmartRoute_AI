@@ -39,6 +39,17 @@ class DriverRouteContractTest {
     }
 
     @Test
+    fun parser_reads_version_for_us012_and_preserves_legacy_compatibility() {
+        val legacy = DriverRouteParser.parse(DRIVER_ROUTE_JSON, "driver-uid")
+        assertNull(legacy.version)
+        val versioned = DRIVER_ROUTE_JSON.replace(
+            "\"status\": \"PLANNED\"",
+            "\"status\": \"PLANNED\", \"version\": 2",
+        )
+        assertEquals(2, DriverRouteParser.parse(versioned, "driver-uid").version)
+    }
+
+    @Test
     fun parser_rejects_unknown_route_status() {
         expectInvalid(DRIVER_ROUTE_JSON.replace("\"PLANNED\"", "\"COMPLETED\""))
     }
