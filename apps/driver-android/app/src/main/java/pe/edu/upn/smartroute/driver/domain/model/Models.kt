@@ -55,6 +55,8 @@ data class Route(
     val depot: Depot,
     val stops: List<DeliveryStop>,
     val metrics: RouteMetrics,
+    /** Versión Firestore para control optimista de inicio US-012. Ausente = no permitir inicio. */
+    val version: Int? = null,
 ) {
     /** Paradas en el orden de visita. */
     val orderedStops: List<DeliveryStop> get() = stops.sortedBy { it.sequence }
