@@ -177,7 +177,7 @@ class FirestoreDriverAssignmentRepository:
         reservation = occupancy.to_dict() or {}
         route_id = reservation.get("route_id")
         if (reservation.get("driver_id") != driver_uid
-            or reservation.get("status") != "RESERVED"
+            or reservation.get("status") not in ("RESERVED", "ACTIVE")
             or not isinstance(route_id, str) or not route_id or "/" in route_id):
             raise DriverAssignmentConflict("Invalid driver reservation")
         snap = self.db.collection("routes").document(route_id).get()
@@ -186,7 +186,9 @@ class FirestoreDriverAssignmentRepository:
         route = snap.to_dict() or {}
         if (route.get("driver_id") != driver_uid
             or route.get("route_type") != "OPTIMIZED"
-            or route.get("status") not in ("PLANNED", "ACTIVE")):
+            or route.get("status") not in ("PLANNED", "ACTIVE")
+            or (reservation.get("status") == "RESERVED" and route.get("status") != "PLANNED")
+            or (reservation.get("status") == "ACTIVE" and route.get("status") != "ACTIVE")):
             raise DriverAssignmentConflict("Assigned route is not accessible")
 
         ordered_ids = route.get("ordered_order_ids") or []
@@ -222,6 +224,7 @@ class FirestoreDriverAssignmentRepository:
                 optimized_seconds=route["optimized_seconds"],
                 optimized_meters=route["optimized_meters"],
                 assigned_at=route.get("assigned_at"),
+                started_at=route.get("started_at"),
             )
         except (KeyError, ValueError, TypeError) as exc:
             raise DriverAssignmentConflict("Invalid assigned route data") from exc
