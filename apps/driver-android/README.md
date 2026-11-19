@@ -103,3 +103,79 @@ Si Android Studio avisa que alguna versión de `gradle/libs.versions.toml` no ex
 ## Referencia de backend validada
 
 En el piloto US-011 se confirmó la asignación a un usuario con rol `DRIVER` en Firestore `smartroute`, sin activar la ruta (estado `PLANNED`). La consulta positiva desde esta APK aún requiere una ejecución real en Android Studio con `google-services.json`, Firebase Android SHA y cuenta de prueba.
+
+---
+
+## Bloque integral Android US-012 + US-013 + US-014 (19-11-2026)
+
+**Estado:** implementación de cliente Android y pruebas JVM publicadas en `feat/mobile-driver-android-base`; **no significa que los endpoints US-013/014 existan aún en GCP ni que el APK haya sido recompilado tras este cambio**. Para pruebas finales ejecutar Gradle en Android Studio.
+
+### Funcionalidades Android incluidas
+
+- US-012: confirmación explícita de iniciar ruta y POST `/api/v1/driver/me/route/start`. Se conserva la misma `idempotency_key` al reintentar una operación fallida mientras el ViewModel vive.
+- US-013: pantalla de parada con botón **Marcar como entregado**, botón **No se pudo entregar**, confirmaciones, motivo obligatorio (1–250 caracteres), estados y progreso derivados del servidor, rechazo de paradas ya cerradas y POST autenticado.
+- US-014: botón **Finalizar recorrido** solo cuando la ruta está `ACTIVE` y todas las entregas figuran `DELIVERED` o `FAILED`; confirmación y verificación de versión.
+- Navegación externa hacia la parada por enlace web de Google Maps; sin permisos de ubicación ni seguimiento GPS.
+- `refreshRoute()` consulta el estado del servidor y actualiza el detalle al volver de una parada.
+- Pruebas JVM: `DeliveryWorkflowTest.kt` para lectura de estados, entrega exitosa/fallida, motivo obligatorio, cierre y rechazos fail-closed.
+- **Seguridad:** las operaciones usan exclusivamente gateway HTTPS, Bearer Firebase, versiones y UUID de idempotencia; el cliente nunca escribe directo en Firestore.
+
+### Bandera de seguridad obligatoria
+
+`apps/driver-android/app/src/main/java/pe/edu/upn/smartroute/driver/di/AppContainer.kt`:
+
+```kotlin
+const val ENABLE_DELIVERY_MUTATIONS = false
+```
+
+Está **desactivada intencionalmente**. Mantener `false` hasta que los tres endpoints nuevos estén implementados y validados en una revisión etiquetada de staging con el conductor QA. El cliente NO simula persistencia ante una respuesta 404, un error HTTP o un recibo inválido.
+
+### Contratos HTTP para backend (propuestos, no confirmados en despliegue)
+
+Todas las operaciones DRIVER requieren `Authorization: Bearer <Firebase ID token>`, JSON, validación de `users/{uid}.role=DRIVER` y `active=true`, y determinación del conductor desde el **token**, nunca desde un UID de cliente.
+
+| Operación | Método y URL | Cuerpo mínimo | Respuesta 200 mínima |
+|---|---|---|---|
+| Iniciar US-012 | `POST /api/v1/driver/me/route/start` | `{"expected_version":2,"idempotency_key":"<UUID>"}` | `{"id":"<route-id>","status":"ACTIVE","version":3}` |
+| Entregar US-013 | `POST /api/v1/driver/me/route/stops/{order_id}/deliver` | `{"expected_version":3,"idempotency_key":"<UUID>"}` | `{"id":"<route-id>","status":"ACTIVE","version":4,"order_id":"<order-id>","order_status":"DELIVERED"}` |
+| Fallo US-013 | `POST /api/v1/driver/me/route/stops/{order_id}/fail` | `{"expected_version":4,"idempotency_key":"<UUID>","reason":"Dirección cerrada"}` | `{"id":"<route-id>","status":"ACTIVE","version":5,"order_id":"<order-id>","order_status":"FAILED"}` |
+| Cerrar US-014 | `POST /api/v1/driver/me/route/complete` | `{"expected_version":N,"idempotency_key":"<UUID>"}` | `{"id":"<route-id>","status":"COMPLETED","version":N+1}` |
+
+**Requisito imprescindible para el backend:** enriquecer el `GET /api/v1/driver/me/route` con `stops[].status` en `ASSIGNED|IN_TRANSIT|DELIVERED|FAILED` para que el progreso sea autoritativo tras reabrir la aplicación; actualmente el contrato US-011 no proporciona este campo. Mantener el resultado `COMPLETED` consultable hasta que la app pueda mostrar el resumen final (o crear un endpoint de historial/recibo). De otra forma, el cierre de US-014 no es integrable con persistencia y reinicios.
+
+**Contrato de errores esperado:** `401` renovar token una sola vez, `403` rol no autorizado, `404` inexistente/no publicado, `409` conflicto de versión/estado/reserva, `422` payload inválido, `5xx` servicio no disponible. Idempotencia por `(uid, route_id, action, key)`, sin repetir transacciones por retry. Requiere documentación OpenAPI y pruebas en el backend.
+
+**Riesgo de reintentos:** el ViewModel preserva la clave mientras vive. Después de reiniciar el proceso no guarda claves pendientes: antes de repetir una mutación de resultado incierto debe reconsultar el servidor; no prometer entrega offline o exactamente una vez sin mecanismo persistente.
+
+### Caso de prueba real preparado (no ejecutar sobre Manuel)
+
+- Firestore: `proyectopersonal-480420` / base nombrada `smartroute`.
+- Conductor QA Firebase + Firestore: `zMuwbYHLfST2QNdNkfosoCbUZ003` (rol `DRIVER`, activo).
+- Ruta QA: `21e3de4b-4002-5870-bc4e-8eafb2826219`, `PLANNED`, `version=2`, `driver_id` QA, seis órdenes sintéticas `ASSIGNED`.
+- Reserva `driver_assignments/{QA_UID}`: `RESERVED`, `version=1`.
+- **Próximo paso 279:** login Android como QA; consultar ruta sin iniciar; validar UID, id, seis paradas y versión; luego ejecutar US-012 solo con aprobación del responsable del piloto.
+- Tras publicar US-013/014, validar 6/6 entregas resueltas, progreso y cierre, y comprobar ruta `COMPLETED`, liberación de conductor y eventos auditados en Firestore.
+- **No iniciar ni modificar** la ruta Manuel `681f7f60-3a77-5f6b-975e-578fb03e4204`.
+
+### Construcción y pruebas en Windows
+
+```powershell
+cd D:\Desarrollo\SmartRoute_AI_US012\apps\driver-android
+git pull --ff-only origin feat/mobile-driver-android-base
+.\gradlew.bat testDebugUnitTest assembleDebug
+# Con el emulador correcto seleccionado:
+.\gradlew.bat connectedDebugAndroidTest
+```
+
+No versionar `google-services.json` ni pegar tokens en incidencias. El `AppConfig.GATEWAY_BASE_URL` del repositorio está en staging canónico; el emulador de las pruebas anteriores usó una URL etiquetada configurada **solo localmente**. Confirmar el endpoint actual antes de hacer pruebas de mutación.
+
+### Criterios de aceptación para PR #56
+
+1. Android `testDebugUnitTest`, `assembleDebug`, `connectedDebugAndroidTest` satisfactorios **después** de los cambios.
+2. Tests de contrato US-012, US-013 y US-014 con backend staging etiquetado y auditoría.
+3. Seguridad: driver ajeno 403/404 según diseño, sin mostrar ruta de terceros; no se envían credenciales ni claves en el APK.
+4. Un intento repetido con mismo UUID no duplica eventos; versión desactualizada da 409; cierre con una entrega pendiente es 409.
+5. Capturas de UI, evidencia de GET/POST sin tokens, cambios Firestore antes/después; pipeline de PR verde.
+6. La activación del feature flag y el merge solo luego de que el backend cumpla los contratos; mantener el tráfico principal sin cambios durante pruebas.
+
+La app Android **no** contiene el servicio backend US-013/014, ni sustituye sus transacciones; este bloque desarrolla la contraparte móvil y sus validaciones.
