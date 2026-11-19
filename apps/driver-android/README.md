@@ -179,3 +179,14 @@ No versionar `google-services.json` ni pegar tokens en incidencias. El `AppConfi
 6. La activación del feature flag y el merge solo luego de que el backend cumpla los contratos; mantener el tráfico principal sin cambios durante pruebas.
 
 La app Android **no** contiene el servicio backend US-013/014, ni sustituye sus transacciones; este bloque desarrolla la contraparte móvil y sus validaciones.
+
+### Demostración Android integral sin backend (US-013/014)
+
+Para validar las pantallas mientras backend publica los endpoints, arrancar **sin** `google-services.json` o con `AppConfig.FORCE_DEMO=true`. La ruta sintética `RUTA-DEMO-001` inicia en `ACTIVE` con 5 paradas, 2 entregadas y 3 pendientes. Es un ejemplo aislado de la ruta QA real. Procedimiento:
+1. Abrir «Mis rutas» → `RUTA-DEMO-001` y entrar en `PED-1003`, confirmar entrega.
+2. Entrar en `PED-1004`, pulsar «No se pudo entregar», introducir el motivo y confirmar.
+3. Entrar en `PED-1005`, confirmar entrega.
+4. Volver al detalle de ruta: 4 entregadas, 1 fallida, 5/5 resueltas; «Finalizar recorrido» visible.
+5. Confirmar finalización; queda `COMPLETED` **solo en memoria del emulador**, sin escribir en GCP. El proceso reiniciado restablece los datos de demostración.
+
+**US-012 no se demuestra con esta ruta sintética, que comienza en ACTIVE**; su flujo real está preparado con el conductor QA, pendiente de validación. La app mantiene el aviso permanente de datos sintéticos. El flag `ENABLE_DELIVERY_MUTATIONS=false` afecta solamente a la modalidad conectada al backend.
