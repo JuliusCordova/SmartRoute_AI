@@ -142,7 +142,7 @@ fun StopDetailScreen(
 
 @Composable
 private fun StopContent(
-    route: Route, stop: DeliveryStop, mutating: Boolean, mutationError: String?,
+    route: Route, stop: DeliveryStop, isDemoData: Boolean, mutating: Boolean, mutationError: String?,
     onDelivery: () -> Unit, onFailure: () -> Unit,
 ) {
     Column(
