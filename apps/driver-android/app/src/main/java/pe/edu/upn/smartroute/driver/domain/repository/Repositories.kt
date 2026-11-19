@@ -17,6 +17,9 @@ interface RouteRepository {
 
     suspend fun getRoute(routeId: String): Route?
 
+    /** Solicita el estado fresco al servidor al volver de otra pantalla. */
+    suspend fun refreshRoute(routeId: String): Route? = getRoute(routeId)
+
     /** US-012: mutación explícita, solo disponible para DRIVER autenticado y versión conocida. */
     suspend fun startRoute(routeId: String, expectedVersion: Int, idempotencyKey: String): Route {
         throw UnsupportedOperationException("Inicio no disponible en modo demostración")
