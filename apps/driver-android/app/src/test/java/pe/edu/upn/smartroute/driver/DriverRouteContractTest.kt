@@ -47,8 +47,17 @@ class DriverRouteContractTest {
     }
 
     @Test
+    fun parser_accepts_completed_route_for_us014() {
+        val json = org.json.JSONObject(DRIVER_ROUTE_JSON)
+            .put("status", "COMPLETED")
+            .toString()
+        val route = DriverRouteParser.parse(json, "driver-uid")
+        assertEquals(RouteStatus.COMPLETED, route.status)
+    }
+
+    @Test
     fun parser_rejects_unknown_route_status() {
-        expectInvalid(DRIVER_ROUTE_JSON.replace("\"PLANNED\"", "\"COMPLETED\""))
+        expectInvalid(DRIVER_ROUTE_JSON.replace("\"PLANNED\"", "\"CANCELLED\""))
     }
 
     @Test
