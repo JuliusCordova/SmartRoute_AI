@@ -71,7 +71,7 @@ class RouteDetailViewModel(
 
     /** US-013: confirmación explícita, solo ACTIVE y solo con backend habilitado. */
     fun recordStop(orderId: String, delivered: Boolean, reason: String?) {
-        if (isDemoData || !pe.edu.upn.smartroute.driver.di.AppConfig.ENABLE_DELIVERY_MUTATIONS ||
+        if ((!isDemoData && !pe.edu.upn.smartroute.driver.di.AppConfig.ENABLE_DELIVERY_MUTATIONS) ||
             _mutating.value || _starting.value) return
         val route = (_state.value as? UiState.Success)?.data ?: return
         val stop = route.stop(orderId) ?: return
