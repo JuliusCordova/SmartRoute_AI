@@ -198,7 +198,7 @@ private fun StopContent(
             if (mutationError != null) {
                 Text(mutationError, color = MaterialTheme.colorScheme.error)
             }
-            if (!AppConfig.ENABLE_DELIVERY_MUTATIONS) {
+            if (!isDemoData && !AppConfig.ENABLE_DELIVERY_MUTATIONS) {
                 Text("Entregas bloqueadas hasta validar y activar los endpoints US-013/014 en GCP.",
                     style = MaterialTheme.typography.bodySmall)
             } else if (route.status != RouteStatus.ACTIVE) {
