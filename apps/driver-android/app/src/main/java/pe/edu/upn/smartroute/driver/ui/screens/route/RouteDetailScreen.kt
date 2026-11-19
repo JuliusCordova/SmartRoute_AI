@@ -50,6 +50,9 @@ import pe.edu.upn.smartroute.driver.ui.components.StatusChip
 import pe.edu.upn.smartroute.driver.ui.components.displayRouteId
 import pe.edu.upn.smartroute.driver.ui.components.label
 import java.util.Locale
+import pe.edu.upn.smartroute.driver.di.AppConfig
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.runtime.LaunchedEffect
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,7 +65,10 @@ fun RouteDetailScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val starting by viewModel.starting.collectAsStateWithLifecycle()
     val startError by viewModel.startError.collectAsStateWithLifecycle()
+    val mutating by viewModel.mutating.collectAsStateWithLifecycle()
+    val mutationError by viewModel.mutationError.collectAsStateWithLifecycle()
     var confirmStart by remember { mutableStateOf(false) }
+    var confirmComplete by remember { mutableStateOf(false) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -101,6 +107,25 @@ fun RouteDetailScreen(
                             )
                         }
                     }
+                    if (AppConfig.ENABLE_DELIVERY_MUTATIONS &&
+                        s.data.status == RouteStatus.ACTIVE &&
+                        s.data.progress.pending == 0 && s.data.stops.isNotEmpty() &&
+                        s.data.version != null) {
+                        Button(
+                            onClick = { confirmComplete = true }, enabled = !mutating,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        ) { Text(if (mutating) "Finalizando..." else "Finalizar recorrido") }
+                    }
+                    if (s.data.status == RouteStatus.COMPLETED) {
+                        Text("Recorrido completado: ${s.data.progress.delivered} entregadas y ${s.data.progress.failed} fallidas.",
+                            modifier = Modifier.padding(16.dp))
+                    }
+                    if (mutationError != null) {
+                        Text(mutationError.orEmpty(), color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(horizontal = 16.dp))
+                        OutlinedButton(onClick = viewModel::load, enabled = !mutating,
+                            modifier = Modifier.padding(horizontal = 16.dp)) { Text("Actualizar estado") }
+                    }
                     if (startError != null) {
                         Text(startError.orEmpty(), color = MaterialTheme.colorScheme.error,
                             modifier = Modifier.padding(horizontal = 16.dp))
@@ -109,6 +134,22 @@ fun RouteDetailScreen(
                 }
             }
         }
+    }
+    if (confirmComplete) {
+        AlertDialog(
+            onDismissRequest = { confirmComplete = false },
+            title = { Text("¿Finalizar recorrido?") },
+            text = { Text("Las entregas deben estar resueltas. GCP confirmará el cierre y liberará la reserva del conductor.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmComplete = false
+                    viewModel.completeRoute()
+                }) { Text("Confirmar finalización") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmComplete = false }) { Text("Cancelar") }
+            },
+        )
     }
     if (confirmStart) {
         AlertDialog(
