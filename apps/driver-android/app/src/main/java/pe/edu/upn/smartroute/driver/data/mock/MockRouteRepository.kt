@@ -19,14 +19,45 @@ class MockRouteRepository(private val latencyMs: Long = 400) : RouteRepository {
 
     override val isDemoData: Boolean = true
 
+    /** Estado en memoria únicamente: se restablece al reiniciar la app. */
+    private var currentRoute: Route = demoRoute.copy(version = 1)
+
     override suspend fun getAssignedRoutes(driverId: String): List<Route> {
         delay(latencyMs)
-        return routes.filter { it.driverId == driverId }
+        return listOf(currentRoute).filter { it.driverId == driverId }
     }
 
     override suspend fun getRoute(routeId: String): Route? {
         delay(latencyMs)
-        return routes.firstOrNull { it.id == routeId }
+        return currentRoute.takeIf { it.id == routeId }
+    }
+
+    override suspend fun recordStop(
+        routeId: String, orderId: String, delivered: Boolean, reason: String?,
+        expectedVersion: Int, idempotencyKey: String,
+    ): Route {
+        require(currentRoute.id == routeId && currentRoute.status == RouteStatus.ACTIVE &&
+            currentRoute.version == expectedVersion) { "Ruta de demostración desactualizada" }
+        val stop = currentRoute.stop(orderId)
+            ?: throw IllegalArgumentException("Parada no encontrada")
+        require(!stop.status.isClosed) { "Parada ya atendida" }
+        require(delivered || !reason.isNullOrBlank()) { "Indica el motivo del fallo" }
+        currentRoute = currentRoute.copy(
+            version = expectedVersion + 1,
+            stops = currentRoute.stops.map {
+                if (it.orderId == orderId) it.copy(status = if (delivered) OrderStatus.DELIVERED else OrderStatus.FAILED)
+                else it
+            },
+        )
+        return currentRoute
+    }
+
+    override suspend fun completeRoute(routeId: String, expectedVersion: Int, idempotencyKey: String): Route {
+        require(currentRoute.id == routeId && currentRoute.status == RouteStatus.ACTIVE &&
+            currentRoute.version == expectedVersion &&
+            currentRoute.stops.all { it.status.isClosed }) { "Hay entregas pendientes" }
+        currentRoute = currentRoute.copy(status = RouteStatus.COMPLETED, version = expectedVersion + 1)
+        return currentRoute
     }
 
     companion object {
