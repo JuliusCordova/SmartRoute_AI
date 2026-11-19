@@ -44,7 +44,13 @@ object DriverRouteParser {
                 address = s.getString("address_label"),
                 district = null,
                 location = geo(s.getJSONObject("geo")),
-                status = OrderStatus.ASSIGNED,
+                status = when (s.optString("status", "ASSIGNED")) {
+                    "ASSIGNED" -> OrderStatus.ASSIGNED
+                    "IN_TRANSIT" -> OrderStatus.IN_TRANSIT
+                    "DELIVERED" -> OrderStatus.DELIVERED
+                    "FAILED" -> OrderStatus.FAILED
+                    else -> throw RouteError.InvalidResponse("estado de parada no reconocido")
+                },
                 timeWindow = null,
             )
         }
