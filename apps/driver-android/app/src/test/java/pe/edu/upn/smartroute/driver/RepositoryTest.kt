@@ -30,6 +30,35 @@ class RepositoryTest {
     }
 
     @Test
+    fun demo_can_register_stops_and_complete_without_backend() = runTest {
+        val demo = MockRouteRepository(latencyMs = 0)
+        var route = demo.getRoute(MockRouteRepository.DEMO_ROUTE_ID)!!
+        assertEquals(2, route.progress.delivered)
+        route = demo.recordStop(route.id, "PED-1003", true, null, route.version!!,
+            "f246fbb6-2514-4187-92d9-c17caf667731")
+        route = demo.recordStop(route.id, "PED-1004", false, "No hubo receptor", route.version!!,
+            "69fb9047-0800-456c-91d2-17ea1ea184a0")
+        route = demo.recordStop(route.id, "PED-1005", true, null, route.version!!,
+            "f3e31c23-d61e-487d-98d6-3240f7d35384")
+        assertEquals(5, route.progress.closed)
+        assertEquals(0, route.progress.pending)
+        val completed = demo.completeRoute(route.id, route.version!!,
+            "b5795f36-6b26-49a1-a0a4-ccbb0287f9ea")
+        assertEquals(pe.edu.upn.smartroute.driver.domain.model.RouteStatus.COMPLETED, completed.status)
+        assertEquals(1, completed.progress.failed)
+    }
+
+    @Test
+    fun demo_rejects_premature_closure() = runTest {
+        val demo = MockRouteRepository(latencyMs = 0)
+        val route = demo.getRoute(MockRouteRepository.DEMO_ROUTE_ID)!!
+        try {
+            demo.completeRoute(route.id, route.version!!, "3f108111-8d5a-4370-b6e4-99a5e5ea3dd9")
+            org.junit.Assert.fail("No debe cerrar con entregas pendientes")
+        } catch (_: IllegalArgumentException) { }
+    }
+
+    @Test
     fun mock_data_is_flagged_as_synthetic() = runTest {
         val route = repo.getRoute(MockRouteRepository.DEMO_ROUTE_ID)!!
         assertEquals(DataOrigin.SYNTHETIC, route.metrics.dataOrigin)
