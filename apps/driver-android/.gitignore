@@ -1,0 +1,14 @@
+*.iml
+.gradle
+.kotlin
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+# Configuración de Firebase del proyecto: se descarga de la consola, no se versiona.
+app/google-services.json
+google-services.json

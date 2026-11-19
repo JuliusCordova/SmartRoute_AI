@@ -219,7 +219,7 @@ class FirestoreDriverAssignmentRepository:
                 geo=by_id[oid]["geo"],
             ) for index, oid in enumerate(ordered_ids, start=1)]
             return DriverRoute(
-                id=route_id, status=route["status"],
+                id=route_id, status=route["status"], version=route["version"],
                 depot=route["depot"], stops=stops,
                 optimized_seconds=route["optimized_seconds"],
                 optimized_meters=route["optimized_meters"],

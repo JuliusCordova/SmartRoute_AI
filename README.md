@@ -125,3 +125,15 @@ El usuario creó y verificó la base **`smartroute` Standard Native** con protec
 - [ADR-13/ADR-14](docs/ADR-13-14-OPEN-MAPS-WEB-FIRST.md): decisiones cartográficas de bajo costo y desarrollo web-first.
 
 **Estado:** implementación propuesta en PR y pendiente CI/despliegue/GCP E2E. No registrar como rutas persistidas o mejoras observadas. La app Android se construirá después de validar esta demo web.
+
+
+## Aplicación móvil — Android del conductor (US-011)
+
+Nueva sección para el Capstone: aplicación móvil nativa en **Kotlin + Jetpack Compose**, complementaria al panel React del operador. El código recibido en Android Studio se revisó contra el endpoint real `GET /api/v1/driver/me/route` y está preparado para incorporarse bajo `apps/driver-android/` (pendiente de importar los archivos del ZIP revisado).
+
+- Firebase Authentication + Google Sign-In: el rol `DRIVER` se comprueba en la API, no en la app.
+- Cliente HTTPS hacia el gateway; estados 200 (ruta), 204 (sin ruta), 401 (token), 403 (rol), 409 (conflicto) y 5xx (servicio).
+- Mapa OpenStreetMap, detalle de paradas y métricas estimadas; sin GPS operativo ni actualizaciones de entregas en esta fase.
+- **Evidencia:** [revisión de arquitectura, contratos y pruebas pendientes](docs/APLICACION_MOVIL_ANDROID_US011.md).
+
+**Estado:** revisión estática completada; compilación de Android Studio y conexión autenticada desde el móvil aún no verificadas. La decisión original de Flutter en los documentos históricos permanece documentada; este entregable es un cliente Android nativo.

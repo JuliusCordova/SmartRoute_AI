@@ -24,7 +24,7 @@ class FakeOwnRouteRepository:
         if not self.assigned:
             return None
         return DriverRoute(
-            id=str(uuid4()), status="PLANNED",
+            id=str(uuid4()), status="PLANNED", version=2,
             depot={"latitude": -12.095, "longitude": -77.035},
             stops=[{
                 "sequence": 1, "order_id": "synthetic-order",
@@ -48,6 +48,7 @@ def test_driver_reads_only_own_route():
         data = response.json()
         assert data["stops"][0]["address_label"] == "Destino sintético Lima"
         assert data["data_origin"] == "estimated"
+        assert data["version"] == 2
         assert "driver_id" not in data
         assert "created_by" not in data
         assert "route_geometry" not in data
