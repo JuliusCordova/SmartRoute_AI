@@ -185,7 +185,7 @@ private fun StopContent(
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Navegar a esta parada") }
             Spacer(Modifier.height(12.dp))
-            val enabled = !mutating && AppConfig.ENABLE_DELIVERY_MUTATIONS &&
+            val enabled = !mutating && (isDemoData || AppConfig.ENABLE_DELIVERY_MUTATIONS) &&
                 route.status == RouteStatus.ACTIVE && !stop.status.isClosed && route.version != null
             Button(onClick = onDelivery, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
                 Text(if (mutating) "Registrando..." else "Marcar como entregado")
