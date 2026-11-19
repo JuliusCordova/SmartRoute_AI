@@ -90,7 +90,7 @@ fun StopDetailScreen(
                     if (stop == null) {
                         MessageView("Este pedido no pertenece a la ruta.", "Volver", onBack)
                     } else {
-                        StopContent(s.data, stop, mutating, mutationError,
+                        StopContent(s.data, stop, viewModel.isDemoData, mutating, mutationError,
                             onDelivery = { confirmDelivery = true },
                             onFailure = { confirmFailure = true })
                     }
