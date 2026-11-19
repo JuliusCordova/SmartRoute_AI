@@ -70,6 +70,8 @@ fun RouteDetailScreen(
     val mutationError by viewModel.mutationError.collectAsStateWithLifecycle()
     var confirmStart by remember { mutableStateOf(false) }
     var confirmComplete by remember { mutableStateOf(false) }
+    // Al regresar desde una parada, consultar el estado definitivo del servidor.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.load() }
     Scaffold(
         topBar = {
             TopAppBar(
