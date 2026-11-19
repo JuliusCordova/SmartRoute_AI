@@ -29,6 +29,7 @@ object DriverRouteParser {
         val status = when (val s = o.getString("status")) {
             "PLANNED" -> RouteStatus.PLANNED
             "ACTIVE" -> RouteStatus.ACTIVE
+            "COMPLETED" -> RouteStatus.COMPLETED
             else -> throw RouteError.InvalidResponse("estado de ruta '$s'")
         }
         val origin = o.optString("data_origin", "estimated")
