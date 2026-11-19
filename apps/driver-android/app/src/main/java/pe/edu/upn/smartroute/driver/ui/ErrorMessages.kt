@@ -9,6 +9,8 @@ fun Throwable.toUserMessage(): String = when (this) {
     is RouteError.Conflict -> "Tu ruta asignada tiene un problema en el servidor. Avisa al operador."
     is RouteError.Unavailable -> "El servicio no está disponible en este momento. Inténtalo en unos minutos."
     is RouteError.Network -> "Sin conexión. Revisa tus datos móviles o el wifi e inténtalo de nuevo."
-    is RouteError.InvalidResponse -> "Recibimos datos de ruta no válidos. Avisa al operador."
+    is RouteError.InvalidResponse -> if (message?.contains("Endpoint no desplegado") == true)
+        "Esta función todavía no está habilitada en el servidor. Avisa al operador."
+    else "El servidor no confirmó la operación. Actualiza tu ruta antes de reintentar."
     else -> "No se pudo cargar la información. Inténtalo de nuevo."
 }
