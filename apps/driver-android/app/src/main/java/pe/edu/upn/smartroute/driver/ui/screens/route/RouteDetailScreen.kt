@@ -110,7 +110,7 @@ fun RouteDetailScreen(
                             )
                         }
                     }
-                    if (AppConfig.ENABLE_DELIVERY_MUTATIONS &&
+                    if ((viewModel.isDemoData || AppConfig.ENABLE_DELIVERY_MUTATIONS) &&
                         s.data.status == RouteStatus.ACTIVE &&
                         s.data.progress.pending == 0 && s.data.stops.isNotEmpty() &&
                         s.data.version != null) {
