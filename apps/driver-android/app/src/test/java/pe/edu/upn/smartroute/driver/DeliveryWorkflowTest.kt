@@ -31,6 +31,24 @@ class DeliveryWorkflowTest {
     }
 
     @Test
+    fun start_route_posts_expected_version_and_validates_receipt() = runTest {
+        val planned = JSONObject(DRIVER_ROUTE_JSON).put("version", 2).toString()
+        val transport = FakeTransport(
+            HttpResponse(200, planned),
+            HttpResponse(200, """{"id":"$routeId","status":"ACTIVE","version":3}"""),
+        )
+        val repo = ApiRouteRepository("https://gateway.example", FakeAuth(), transport)
+        repo.getAssignedRoutes("ignored")
+        val updated = repo.startRoute(routeId, 2, key)
+        assertEquals(RouteStatus.ACTIVE, updated.status)
+        assertEquals(3, updated.version)
+        assertTrue(transport.posts.single().first.endsWith("/api/v1/driver/me/route/start"))
+        val body = JSONObject(transport.posts.single().third)
+        assertEquals(2, body.getInt("expected_version"))
+        assertEquals(key, body.getString("idempotency_key"))
+    }
+
+    @Test
     fun parser_reads_authoritative_stop_statuses() {
         val route = DriverRouteParser.parse(
             activeRouteJson("ord-a" to "DELIVERED", "ord-b" to "FAILED"), "qa",
