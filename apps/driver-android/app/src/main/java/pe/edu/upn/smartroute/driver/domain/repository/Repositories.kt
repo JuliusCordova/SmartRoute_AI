@@ -21,6 +21,19 @@ interface RouteRepository {
     suspend fun startRoute(routeId: String, expectedVersion: Int, idempotencyKey: String): Route {
         throw UnsupportedOperationException("Inicio no disponible en modo demostración")
     }
+
+    /** US-013: confirma una entrega o falla por medio del gateway autenticado. */
+    suspend fun recordStop(
+        routeId: String, orderId: String, delivered: Boolean, reason: String?,
+        expectedVersion: Int, idempotencyKey: String,
+    ): Route {
+        throw UnsupportedOperationException("Registro de entregas no disponible")
+    }
+
+    /** US-014: cierra el recorrido tras resolver la totalidad de paradas. */
+    suspend fun completeRoute(routeId: String, expectedVersion: Int, idempotencyKey: String): Route {
+        throw UnsupportedOperationException("Cierre no disponible")
+    }
 }
 
 /** Fuente de la credencial de Google. La implementa la capa de UI porque necesita una Activity. */
