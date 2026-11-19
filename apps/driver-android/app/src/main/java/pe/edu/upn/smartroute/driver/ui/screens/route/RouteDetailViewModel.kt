@@ -37,11 +37,12 @@ class RouteDetailViewModel(
         if (route.status != RouteStatus.PLANNED) return
         _starting.value = true
         _startError.value = null
-        val key = UUID.randomUUID().toString()
+        val key = idempotencyFor("start:${route.id}:$version")
         viewModelScope.launch {
             try {
                 val active = routes.startRoute(route.id, version, key)
                 _state.value = UiState.Success(active)
+                clearPending()
             } catch (e: Exception) {
                 _startError.value = e.toUserMessage()
             } finally {
@@ -51,11 +52,83 @@ class RouteDetailViewModel(
     }
 
 
+    /** Reutiliza una misma clave de idempotencia al reintentar una mutación fallida. */
+    private var pendingSignature: String? = null
+    private var pendingKey: String? = null
+    private fun idempotencyFor(signature: String): String {
+        if (pendingSignature != signature) {
+            pendingSignature = signature
+            pendingKey = UUID.randomUUID().toString()
+        }
+        return pendingKey!!
+    }
+    private fun clearPending() { pendingSignature = null; pendingKey = null }
+
+    private val _mutating = MutableStateFlow(false)
+    val mutating: StateFlow<Boolean> = _mutating.asStateFlow()
+    private val _mutationError = MutableStateFlow<String?>(null)
+    val mutationError: StateFlow<String?> = _mutationError.asStateFlow()
+
+    /** US-013: confirmación explícita, solo ACTIVE y solo con backend habilitado. */
+    fun recordStop(orderId: String, delivered: Boolean, reason: String?) {
+        if (isDemoData || !pe.edu.upn.smartroute.driver.di.AppConfig.ENABLE_DELIVERY_MUTATIONS ||
+            _mutating.value || _starting.value) return
+        val route = (_state.value as? UiState.Success)?.data ?: return
+        val stop = route.stop(orderId) ?: return
+        val version = route.version ?: return
+        if (route.status != RouteStatus.ACTIVE || stop.status.isClosed) return
+        if (!delivered && (reason.isNullOrBlank() || reason.trim().length > 250)) {
+            _mutationError.value = "Indica un motivo de 1 a 250 caracteres."
+            return
+        }
+        val signature = "stop:${route.id}:$orderId:$delivered:${reason?.trim()}:$version"
+        val key = idempotencyFor(signature)
+        _mutating.value = true
+        _mutationError.value = null
+        viewModelScope.launch {
+            try {
+                _state.value = UiState.Success(
+                    routes.recordStop(route.id, orderId, delivered, reason, version, key)
+                )
+                clearPending()
+            } catch (e: Exception) {
+                _mutationError.value = e.toUserMessage()
+            } finally {
+                _mutating.value = false
+            }
+        }
+    }
+
+    /** US-014: cierre solo tras resolver todas las entregas. */
+    fun completeRoute() {
+        if (isDemoData || !pe.edu.upn.smartroute.driver.di.AppConfig.ENABLE_DELIVERY_MUTATIONS ||
+            _mutating.value || _starting.value) return
+        val route = (_state.value as? UiState.Success)?.data ?: return
+        val version = route.version ?: return
+        if (route.status != RouteStatus.ACTIVE || route.progress.pending != 0 || route.stops.isEmpty()) return
+        val key = idempotencyFor("complete:${route.id}:$version")
+        _mutating.value = true
+        _mutationError.value = null
+        viewModelScope.launch {
+            try {
+                _state.value = UiState.Success(routes.completeRoute(route.id, version, key))
+                clearPending()
+            } catch (e: Exception) {
+                _mutationError.value = e.toUserMessage()
+            } finally {
+                _mutating.value = false
+            }
+        }
+    }
+
     init {
         load()
     }
 
     fun load() {
+        if (_starting.value || _mutating.value) return
+        _mutationError.value = null
+        _startError.value = null
         _state.value = UiState.Loading
         viewModelScope.launch {
             _state.value = try {
