@@ -139,7 +139,7 @@ class ApiRouteRepository(
         )
         val receipt = requireReceipt(response, routeId, expectedVersion, "ACTIVE")
         if (receipt.optString("order_id") != orderId ||
-            receipt.optString("order_status") != if (delivered) "DELIVERED" else "FAILED")
+            receipt.optString("order_status") != (if (delivered) "DELIVERED" else "FAILED"))
             throw RouteError.InvalidResponse("Confirmación de parada incompatible")
         val updated = route.copy(
             version = expectedVersion + 1,
