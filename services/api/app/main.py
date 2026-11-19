@@ -228,3 +228,79 @@ def list_available_drivers(
         raise HTTPException(status_code=422, detail="Invalid driver cursor") from None
     except Exception:
         raise HTTPException(status_code=503, detail="Driver list unavailable") from None
+
+
+# US-012/013/014: authenticated mobile DRIVER workflow.
+from .driver_workflow import WorkflowRequest, StopResultRequest, RouteReceipt, StopReceipt
+from .firestore_driver_workflow import (
+    FirestoreDriverWorkflowRepository, WorkflowConflict, WorkflowMissing,
+)
+
+
+@lru_cache(maxsize=1)
+def get_driver_workflow_repository() -> FirestoreDriverWorkflowRepository:
+    return FirestoreDriverWorkflowRepository()
+
+
+def _execute_driver_workflow(
+    *, actor: UserContext, action: str, payload: WorkflowRequest | StopResultRequest,
+    repo: FirestoreDriverWorkflowRepository, order_id: str | None = None,
+):
+    try:
+        return repo.execute(driver_uid=actor.uid, action=action, payload=payload, order_id=order_id)
+    except WorkflowMissing as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except WorkflowConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    except Exception:
+        raise HTTPException(status_code=503, detail="Driver workflow unavailable") from None
+
+
+@app.post("/api/v1/driver/me/route/start", response_model=RouteReceipt,
+          tags=["Driver workflow"])
+def start_my_route(
+    payload: WorkflowRequest,
+    actor: UserContext = Depends(require_driver),
+    repo: FirestoreDriverWorkflowRepository = Depends(get_driver_workflow_repository),
+):
+    return _execute_driver_workflow(
+        actor=actor, action="start", payload=payload, repo=repo,
+    )
+
+
+@app.post("/api/v1/driver/me/route/stops/{order_id}/deliver",
+          response_model=StopReceipt, tags=["Driver workflow"])
+def deliver_my_stop(
+    order_id: str, payload: StopResultRequest,
+    actor: UserContext = Depends(require_driver),
+    repo: FirestoreDriverWorkflowRepository = Depends(get_driver_workflow_repository),
+):
+    return _execute_driver_workflow(
+        actor=actor, action="deliver", payload=payload, repo=repo, order_id=order_id,
+    )
+
+
+@app.post("/api/v1/driver/me/route/stops/{order_id}/fail",
+          response_model=StopReceipt, tags=["Driver workflow"])
+def fail_my_stop(
+    order_id: str, payload: StopResultRequest,
+    actor: UserContext = Depends(require_driver),
+    repo: FirestoreDriverWorkflowRepository = Depends(get_driver_workflow_repository),
+):
+    return _execute_driver_workflow(
+        actor=actor, action="fail", payload=payload, repo=repo, order_id=order_id,
+    )
+
+
+@app.post("/api/v1/driver/me/route/complete", response_model=RouteReceipt,
+          tags=["Driver workflow"])
+def complete_my_route(
+    payload: WorkflowRequest,
+    actor: UserContext = Depends(require_driver),
+    repo: FirestoreDriverWorkflowRepository = Depends(get_driver_workflow_repository),
+):
+    return _execute_driver_workflow(
+        actor=actor, action="complete", payload=payload, repo=repo,
+    )
