@@ -103,6 +103,113 @@ class ApiRouteRepository(
             }
         }
 
+    /**
+     * US-013: contrato propuesto; el backend debe confirmar el estado exacto de la parada.
+     * Respuesta 200 mínima: {id, status:"ACTIVE", version, order_id, order_status}.
+     * Una respuesta ambigua no se convierte en éxito local.
+     */
+    override suspend fun recordStop(
+        routeId: String, orderId: String, delivered: Boolean, reason: String?,
+        expectedVersion: Int, idempotencyKey: String,
+    ): Route = mutex.withLock {
+        resetCacheFor(currentUid())
+        val route = cached?.takeIf { it.id == routeId } ?: fetchOwnRoute()
+            ?: throw RouteError.Conflict()
+        if (route.status != pe.edu.upn.smartroute.driver.domain.model.RouteStatus.ACTIVE ||
+            route.version != expectedVersion || route.stop(orderId) == null ||
+            route.stop(orderId)!!.status.isClosed) throw RouteError.Conflict()
+        val cleanedReason = reason?.trim()
+        if (!delivered && (cleanedReason.isNullOrEmpty() || cleanedReason.length > 250))
+            throw IllegalArgumentException("Indica un motivo de 1 a 250 caracteres.")
+        val key = UUID.fromString(idempotencyKey).toString()
+        val body = JSONObject().put("expected_version", expectedVersion)
+            .put("idempotency_key", key)
+            .apply { if (!delivered) put("reason", cleanedReason) }.toString()
+        val path = if (delivered) "deliver" else "fail"
+        val response = postAuthorized(
+            "/api/v1/driver/me/route/stops/${java.net.URLEncoder.encode(orderId, "UTF-8")}/$path",
+            body,
+        )
+        val receipt = requireReceipt(response, routeId, expectedVersion, "ACTIVE")
+        if (receipt.optString("order_id") != orderId ||
+            receipt.optString("order_status") != if (delivered) "DELIVERED" else "FAILED")
+            throw RouteError.InvalidResponse("Confirmación de parada incompatible")
+        val updated = route.copy(
+            version = expectedVersion + 1,
+            stops = route.stops.map {
+                if (it.orderId == orderId) it.copy(
+                    status = if (delivered) pe.edu.upn.smartroute.driver.domain.model.OrderStatus.DELIVERED
+                        else pe.edu.upn.smartroute.driver.domain.model.OrderStatus.FAILED,
+                ) else it
+            },
+        )
+        cached = updated
+        updated
+    }
+
+    /**
+     * US-014: respuesta 200 mínima: {id,status:"COMPLETED",version}.
+     * No permite cerrar rutas con entregas aún pendientes.
+     */
+    override suspend fun completeRoute(routeId: String, expectedVersion: Int, idempotencyKey: String): Route =
+        mutex.withLock {
+            resetCacheFor(currentUid())
+            val route = cached?.takeIf { it.id == routeId } ?: fetchOwnRoute()
+                ?: throw RouteError.Conflict()
+            if (route.status != pe.edu.upn.smartroute.driver.domain.model.RouteStatus.ACTIVE ||
+                route.version != expectedVersion || route.stops.isEmpty() ||
+                route.stops.any { !it.status.isClosed }) throw RouteError.Conflict()
+            val body = JSONObject().put("expected_version", expectedVersion)
+                .put("idempotency_key", UUID.fromString(idempotencyKey).toString()).toString()
+            val response = postAuthorized(COMPLETE_ROUTE_PATH, body)
+            requireReceipt(response, routeId, expectedVersion, "COMPLETED")
+            val updated = route.copy(
+                status = pe.edu.upn.smartroute.driver.domain.model.RouteStatus.COMPLETED,
+                version = expectedVersion + 1,
+            )
+            cached = updated
+            updated
+        }
+
+    private suspend fun postAuthorized(path: String, body: String): HttpResponse {
+        suspend fun call(refresh: Boolean): HttpResponse {
+            val token = auth.idToken(refresh) ?: throw RouteError.Unauthorized()
+            return try {
+                transport.post(
+                    gatewayBaseUrl.trimEnd('/') + path,
+                    mapOf("Authorization" to "Bearer $token", "Accept" to "application/json"),
+                    body,
+                )
+            } catch (e: IOException) {
+                throw RouteError.Network()
+            }
+        }
+        var response = call(false)
+        if (response.code == 401) response = call(true)
+        return response
+    }
+
+    private fun requireReceipt(
+        response: HttpResponse, routeId: String, expectedVersion: Int, expectedStatus: String,
+    ): JSONObject {
+        when (response.code) {
+            401 -> throw RouteError.Unauthorized()
+            403 -> throw RouteError.Forbidden()
+            404 -> throw RouteError.InvalidResponse("Endpoint no desplegado: HTTP 404")
+            409 -> throw RouteError.Conflict()
+            in 500..599 -> throw RouteError.Unavailable(response.code)
+            200 -> Unit
+            else -> throw RouteError.InvalidResponse("HTTP ${response.code}")
+        }
+        val receipt = try { JSONObject(response.body) }
+            catch (_: org.json.JSONException) { throw RouteError.InvalidResponse("Confirmación inválida") }
+        if (receipt.optString("id") != routeId ||
+            receipt.optString("status") != expectedStatus ||
+            receipt.optInt("version", -1) != expectedVersion + 1)
+            throw RouteError.InvalidResponse("Servidor no confirmó versión o estado")
+        return receipt
+    }
+
     /** Devuelve null cuando el servidor responde 204 (sin ruta asignada). */
     private suspend fun fetchOwnRoute(): Route? {
         var response = call(forceRefresh = false)
@@ -136,5 +243,6 @@ class ApiRouteRepository(
     companion object {
         const val OWN_ROUTE_PATH = "/api/v1/driver/me/route"
         const val START_ROUTE_PATH = "/api/v1/driver/me/route/start"
+        const val COMPLETE_ROUTE_PATH = "/api/v1/driver/me/route/complete"
     }
 }
