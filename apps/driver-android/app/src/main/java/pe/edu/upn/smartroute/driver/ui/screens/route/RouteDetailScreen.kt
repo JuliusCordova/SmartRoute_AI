@@ -52,7 +52,8 @@ import pe.edu.upn.smartroute.driver.ui.components.label
 import java.util.Locale
 import pe.edu.upn.smartroute.driver.di.AppConfig
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
