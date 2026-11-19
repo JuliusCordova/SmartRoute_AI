@@ -32,9 +32,17 @@ class FakeAuth(private val token: String? = "token-sintetico") : AuthRepository 
 class FakeTransport(vararg responses: HttpResponse, private val failWith: Exception? = null) : HttpTransport {
     private val queue = ArrayDeque(responses.toList())
     val calls = mutableListOf<Pair<String, Map<String, String>>>()
+    val posts = mutableListOf<Triple<String, Map<String, String>, String>>()
 
     override suspend fun get(url: String, headers: Map<String, String>): HttpResponse {
         calls += url to headers
+        failWith?.let { throw it }
+        return queue.removeFirstOrNull() ?: error("Sin respuesta programada")
+    }
+
+    override suspend fun post(url: String, headers: Map<String, String>, body: String): HttpResponse {
+        calls += url to headers
+        posts += Triple(url, headers, body)
         failWith?.let { throw it }
         return queue.removeFirstOrNull() ?: error("Sin respuesta programada")
     }
