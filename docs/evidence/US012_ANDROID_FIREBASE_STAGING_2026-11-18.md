@@ -123,3 +123,55 @@ Capturas proporcionadas durante la sesión (descripciones basadas en lo mostrado
 **Próximo paso numerado: 264 — inventariar, en lectura solamente, `drivers` y `driver_assignments` de la base `smartroute` para seleccionar un conductor de pruebas libre y preparar una ruta sintética independiente.** No crear/activar la ruta de Manuel ni ejecutar `Confirmar inicio` del piloto. Mantener el PR #56 abierto y el tráfico principal sin cambios hasta aprobación explícita.
 
 **Estimación orientativa de avance funcional comunicada durante la sesión:** ~80 %. **No corresponde a rúbrica final ni reemplaza criterios de aceptación verificados.**
+
+---
+
+## 9. Actualización de ejecución: pasos 264–278 (19 nov 2026)
+
+**Este apartado prevalece sobre el punto de reanudación del §8.** El siguiente paso es **279: autenticación Android con el conductor QA y lectura de su propia ruta**, aún no ejecutado.
+
+### Inspección y creación de identidad QA
+
+- Paso 264, Firestore lectura: `drivers` contenía únicamente al piloto Manuel (`active=true`, `available=true`), pero `driver_assignments` registraba su ruta `681f7f60-3a77-5f6b-975e-578fb03e4204` con `status=RESERVED`, `version=1`. Disponibilidad del perfil **no implica ausencia de reserva**.
+- Paso 265, Firebase Auth lectura: tres identidades existentes (Manuel, operador Julio y cuenta alternativa Julius). No se crearon cuentas Firebase.
+- Paso 266, Firestore lectura: Julio es `OPERATOR` activo y no tiene perfil `drivers`; la cuenta QA alternativa existía en Firebase pero **no tenía documento** `users`, `drivers` ni `driver_assignments`.
+- Paso 267, esquema real en Firestore:
+  - `users/{uid}`: `uid` (str), `role` (str), `active` (bool), `created_at` y `updated_at` (timestamps).
+  - `drivers/{uid}`: `uid` (str), `display_name` (str), `active`, `available` (bool), timestamps.
+- Paso 268, **escritura efectuada en Firestore**: creación de dos documentos para QA UID `zMuwbYHLfST2QNdNkfosoCbUZ003`, `users.role=DRIVER`, `users.active=true`, `drivers.display_name="Conductor QA SmartRoute"`, `drivers.active=true`, `drivers.available=true`. El script utilizó un batch `create` sin sobrescritura; resultado de terminal confirma perfiles creados. No se generó asignación en esta operación.
+- La cuenta Julio **conserva OPERATOR** y Manuel **conserva su reserva**. Evitar mezclar roles de pruebas.
+
+### Descubrimiento del flujo y reutilización de ruta sintética existente
+
+- Pasos 269–272: lectura de contrato real `OrderCreate`, `OptimizedRouteCreate`, `AssignDriverRequest` y endpoints. Las paradas **no están embebidas** en `routes/{id}`; se reconstruyen a partir de `order_ids` y `ordered_order_ids`. La ruta optimizada se persiste mediante `POST /api/v1/optimized-routes` y la asignación mediante `POST /api/v1/optimized-routes/{route_id}/assign-driver`, con `expected_version` e `idempotency_key`.
+- Paso 273: Cloud Shell estaba en rama `feat/mobile-driver-android-base`, commit local `5b06219` antes de los nuevos commits de documentación. Se detectaron archivos locales no seguidos `apps/operator-web/dist/`, `node_modules/`, `package-lock.json`; **no se limpiaron ni modificaron**.
+- Paso 274: se inspeccionó `apps/operator-web/src/main.jsx`; el frontend ya contempla crear órdenes, previsualizar matriz vial y persistir ruta, por lo que se **reutilizó** una ruta previamente creada (sin crear órdenes adicionales).
+- Paso 275, Firestore: ruta QA candidata `21e3de4b-4002-5870-bc4e-8eafb2826219` era `status=PLANNED`, `driver_id=null`, `version=1`, `route_type=OPTIMIZED`, `order_count=6`. Ruta de Manuel `681f7f60-3a77-5f6b-975e-578fb03e4204` seguía `PLANNED`, conductor propio, versión 2.
+- Paso 276, Firestore: **6/6** órdenes de la ruta QA existen; las seis tienen `status=ASSIGNED`, `data_origin=synthetic`, y `route_id` apuntando exactamente a la ruta QA. Validación automática `True`.
+- Paso 277, interfaz del operador: captura confirma `21e3de4b…` marcada **Asignada**, ruta todavía `PLANNED`; estimaciones 56 min / 35.31 km, mejora **estimada** 12.26 % frente a 64 min / 40.43 km originales. Se visualiza conductor QA asociado. **Esta asignación sí se ejecutó** contra Firestore mediante la interfaz (no es solo una propuesta).
+- Paso 278, **verificación directa de Firestore tras la asignación**:
+
+```text
+RUTA QA: 21e3de4b-4002-5870-bc4e-8eafb2826219
+status: PLANNED
+version: 2
+driver_id: zMuwbYHLfST2QNdNkfosoCbUZ003
+order_ids: 6
+
+driver_assignments/{QA_UID}:
+route_id: 21e3de4b-4002-5870-bc4e-8eafb2826219
+status: RESERVED
+version: 1
+
+Asignación consistente: True
+```
+
+**Interpretación:** US-011 de asignación QA, desde UI OPERATOR hasta Firestore, comprobado; versiones de ruta y reserva son independientes. El usuario confirmó captura de la UI y salida de Firestore. **US-012 no se ha iniciado todavía** y los seis pedidos QA aún no han entrado en tránsito.
+
+### Estado y punto exacto de reanudación
+
+- **Paso 279, pendiente:** cambiar sesión de Android de Manuel a la cuenta QA, actualizar `Mis rutas` y comprobar que solo aparece `21e3de4b…` (6 entregas, `PLANNED`, 56 min estimados), con botón `Iniciar recorrido`.
+- **No pulsar Confirmar inicio** antes de verificar identidad y ruta en Android. Después, para la prueba US-012, ejecutar una sola confirmación sobre **ruta QA**, capturar respuesta y verificar Firestore `ACTIVE`, versión, ocupación y auditoría.
+- **Manuel:** no tocar `681f7f60…`, sus seis órdenes ni su reserva.
+- Capturas de pantalla de las rutas y asignación QA descritas aquí, **no incorporadas como binarios PNG**.
+- Estado del PR: #56 sigue **draft**, sin merge; la rama de trabajo contiene documentación de esta ejecución. No se desplegó software ni se alteró el tráfico de Cloud Run con esta actualización documental.
