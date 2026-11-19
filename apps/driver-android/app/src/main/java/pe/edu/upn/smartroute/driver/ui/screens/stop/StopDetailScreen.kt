@@ -18,6 +18,17 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.net.Uri
+import pe.edu.upn.smartroute.driver.di.AppConfig
+import pe.edu.upn.smartroute.driver.domain.model.RouteStatus
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -47,6 +58,11 @@ fun StopDetailScreen(
     onBack: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val mutating by viewModel.mutating.collectAsStateWithLifecycle()
+    val mutationError by viewModel.mutationError.collectAsStateWithLifecycle()
+    var confirmDelivery by remember { mutableStateOf(false) }
+    var confirmFailure by remember { mutableStateOf(false) }
+    var failureReason by remember { mutableStateOf("") }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -74,16 +90,61 @@ fun StopDetailScreen(
                     if (stop == null) {
                         MessageView("Este pedido no pertenece a la ruta.", "Volver", onBack)
                     } else {
-                        StopContent(s.data, stop)
+                        StopContent(s.data, stop, mutating, mutationError,
+                            onDelivery = { confirmDelivery = true },
+                            onFailure = { confirmFailure = true })
                     }
                 }
             }
         }
     }
+    if (confirmDelivery) {
+        AlertDialog(
+            onDismissRequest = { confirmDelivery = false },
+            title = { Text("¿Confirmar entrega?") },
+            text = { Text("Se registrará la entrega en GCP. Esta acción no se puede deshacer desde Android.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDelivery = false
+                    viewModel.recordStop(orderId, delivered = true, reason = null)
+                }) { Text("Confirmar entregado") }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelivery = false }) { Text("Cancelar") } },
+        )
+    }
+    if (confirmFailure) {
+        AlertDialog(
+            onDismissRequest = { confirmFailure = false },
+            title = { Text("Registrar entrega fallida") },
+            text = {
+                OutlinedTextField(
+                    value = failureReason,
+                    onValueChange = { if (it.length <= 250) failureReason = it },
+                    label = { Text("Motivo obligatorio") },
+                    supportingText = { Text("Máximo 250 caracteres") },
+                    minLines = 2,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = failureReason.isNotBlank(),
+                    onClick = {
+                        confirmFailure = false
+                        viewModel.recordStop(orderId, delivered = false, reason = failureReason.trim())
+                    },
+                ) { Text("Confirmar fallo") }
+            },
+            dismissButton = { TextButton(onClick = { confirmFailure = false }) { Text("Cancelar") } },
+        )
+    }
 }
 
 @Composable
-private fun StopContent(route: Route, stop: DeliveryStop) {
+private fun StopContent(
+    route: Route, stop: DeliveryStop, mutating: Boolean, mutationError: String?,
+    onDelivery: () -> Unit, onFailure: () -> Unit,
+) {
     Column(
         Modifier
             .fillMaxSize()
@@ -114,20 +175,37 @@ private fun StopContent(route: Route, stop: DeliveryStop) {
             Field("Coordenadas", String.format(Locale.US, "%.5f, %.5f", stop.location.latitude, stop.location.longitude))
             stop.notes?.let { Field("Indicaciones", it) }
             Spacer(Modifier.height(20.dp))
-            // Acciones visibles pero deshabilitadas: el backend aún no expone las transiciones de estado.
-            Button(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth()) {
-                Text("Marcar como entregado")
+            val context = LocalContext.current
+            OutlinedButton(
+                onClick = {
+                    val point = "${stop.location.latitude},${stop.location.longitude}"
+                    val uri = Uri.parse("https://www.google.com/maps/dir/?api=1&destination=" + Uri.encode(point))
+                    context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Navegar a esta parada") }
+            Spacer(Modifier.height(12.dp))
+            val enabled = !mutating && AppConfig.ENABLE_DELIVERY_MUTATIONS &&
+                route.status == RouteStatus.ACTIVE && !stop.status.isClosed && route.version != null
+            Button(onClick = onDelivery, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
+                Text(if (mutating) "Registrando..." else "Marcar como entregado")
             }
             Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = onFailure, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
                 Text("No se pudo entregar")
             }
             Spacer(Modifier.height(6.dp))
-            Text(
-                "Las acciones de entrega se activarán cuando el servidor publique las transiciones de estado.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            if (mutationError != null) {
+                Text(mutationError, color = MaterialTheme.colorScheme.error)
+            }
+            if (!AppConfig.ENABLE_DELIVERY_MUTATIONS) {
+                Text("Entregas bloqueadas hasta validar y activar los endpoints US-013/014 en GCP.",
+                    style = MaterialTheme.typography.bodySmall)
+            } else if (route.status != RouteStatus.ACTIVE) {
+                Text("Inicia el recorrido para registrar entregas.", style = MaterialTheme.typography.bodySmall)
+            } else if (stop.status.isClosed) {
+                Text("Esta parada ya tiene resultado registrado.", style = MaterialTheme.typography.bodySmall)
+            }
         }
     }
 }
