@@ -52,6 +52,13 @@ class ApiRouteRepository(
         route?.takeIf { it.id == routeId }
     }
 
+    override suspend fun refreshRoute(routeId: String): Route? = mutex.withLock {
+        resetCacheFor(currentUid())
+        val route = fetchOwnRoute()
+        cached = route
+        route?.takeIf { it.id == routeId }
+    }
+
     override suspend fun startRoute(routeId: String, expectedVersion: Int, idempotencyKey: String): Route =
         mutex.withLock {
             val uid = currentUid()
