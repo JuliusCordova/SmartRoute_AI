@@ -132,7 +132,7 @@ class RouteDetailViewModel(
         _state.value = UiState.Loading
         viewModelScope.launch {
             _state.value = try {
-                routes.getRoute(routeId)?.let { UiState.Success(it) }
+                routes.refreshRoute(routeId)?.let { UiState.Success(it) }
                     ?: UiState.NotFound("Esta ruta ya no está asignada a tu cuenta.")
             } catch (e: Exception) {
                 UiState.Error(e.toUserMessage())
