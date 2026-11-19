@@ -16,6 +16,9 @@ object AppConfig {
 
     /** Pon true para forzar el modo demostración aunque Firebase esté configurado. */
     const val FORCE_DEMO = false
+
+    /** Fail-closed hasta validar los endpoints de US-013/014 en GCP. */
+    const val ENABLE_DELIVERY_MUTATIONS = false
 }
 
 /**
