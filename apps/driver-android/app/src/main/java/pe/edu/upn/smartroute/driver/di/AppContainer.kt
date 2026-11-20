@@ -12,7 +12,7 @@ import pe.edu.upn.smartroute.driver.ui.auth.CredentialManagerSource
 
 /** Configuración pública (no secreta). Las claves de mapas y del backend nunca van en la app. */
 object AppConfig {
-    const val GATEWAY_BASE_URL = "https://smartroute-gateway-staging-913797829604.us-central1.run.app"
+    const val GATEWAY_BASE_URL = "https://us014-gateway-test---smartroute-gateway-staging-mkqutd4koq-uc.a.run.app"
 
     /** Pon true para forzar el modo demostración aunque Firebase esté configurado. */
     const val FORCE_DEMO = false
