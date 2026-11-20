@@ -1,6 +1,7 @@
 """US-012/013/014 transactional E2E on Firestore emulator ONLY; never live GCP."""
 import os
 from uuid import uuid4
+from datetime import datetime, timezone
 
 import pytest
 
@@ -18,6 +19,8 @@ from app.firestore_driver_assignment import FirestoreDriverAssignmentRepository
 def test_driver_start_deliver_fail_complete_idempotency_and_ownership():
     from google.cloud import firestore
 
+    from app.orders import OrderCreate, new_order
+    from app.optimized_routes import OptimizedRoute
     db = firestore.Client(project="demo-smartroute")
     suffix = uuid4().hex[:12]
     uid = "synthetic-driver-" + suffix
@@ -27,20 +30,35 @@ def test_driver_start_deliver_fail_complete_idempotency_and_ownership():
     db.collection("drivers").document(uid).create({
         "uid": uid, "active": True, "available": True, "display_name": "Emulator QA",
     })
+    now = datetime.now(timezone.utc)
+    route = OptimizedRoute(
+        id=route_id, created_by="synthetic-operator", driver_id=uid,
+        assigned_by="synthetic-operator", assigned_at=now,
+        status="PLANNED", version=2,
+        depot={"latitude": -12.095, "longitude": -77.035},
+        order_ids=order_ids, baseline_order_ids=order_ids,
+        ordered_order_ids=order_ids,
+        baseline_seconds=650, optimized_seconds=600,
+        baseline_meters=2800, optimized_meters=2500,
+        improvement_pct=10.0, matrix_fingerprint="a" * 64,
+        created_at=now, updated_at=now,
+    )
     db.collection("routes").document(route_id).create({
-        "id": route_id, "driver_id": uid, "route_type": "OPTIMIZED",
-        "status": "PLANNED", "version": 2, "ordered_order_ids": order_ids,
-        "depot": {"latitude": -12.095, "longitude": -77.035},
-        "optimized_seconds": 600, "optimized_meters": 2500,
+        **route.model_dump(mode="python"),
         "stop_snapshots": [{
             "id": oid, "address_label": "Synthetic stop",
             "geo": {"latitude": -12.1, "longitude": -77.04},
         } for oid in order_ids],
     })
     for oid in order_ids:
+        order = new_order(OrderCreate(
+            address_label="Synthetic stop",
+            geo={"latitude": -12.1, "longitude": -77.04},
+        ), actor_uid="synthetic-operator")
         db.collection("orders").document(oid).create({
-            "id": oid, "route_id": route_id, "status": "ASSIGNED", "version": 2,
-            "address_label": "Synthetic stop", "geo": {"latitude": -12.1, "longitude": -77.04},
+            **order.model_dump(mode="python"),
+            "id": oid, "route_id": route_id, "status": "ASSIGNED",
+            "version": 2,
         })
     db.collection("driver_assignments").document(uid).create({
         "driver_id": uid, "route_id": route_id, "status": "RESERVED", "version": 1,
