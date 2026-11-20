@@ -18,15 +18,40 @@ import httpx
 
 PROJECT = "proyectopersonal-480420"
 PRIVATE_API_URL = "https://smartroute-api-staging-913797829604.us-central1.run.app"
+# Exact trusted backend URLs only: no env-controlled arbitrary proxy target.
+# The IAM ID token audience stays on the canonical Cloud Run service URL.
+APPROVED_API_URLS = frozenset({
+    PRIVATE_API_URL,
+    "https://us012-version-test---smartroute-api-staging-mkqutd4koq-uc.a.run.app",
+    "https://us014-backend-test---smartroute-api-staging-mkqutd4koq-uc.a.run.app",
+})
+
+
+def backend_url() -> str:
+    target = os.getenv("SMARTROUTE_BACKEND_URL", "")
+    if target not in APPROVED_API_URLS:
+        raise RuntimeError("Unapproved private SmartRoute backend URL")
+    return target
+
+
+def permitted_endpoint(method: str, path: str) -> bool:
+    return ((method, path) in ALLOWED
+            or (method == "POST" and ASSIGN_PATH.fullmatch(path) is not None)
+            or (method == "GET" and OPTIMIZED_GET_PATH.fullmatch(path) is not None)
+            or (method == "POST" and ASSIGN_DRIVER_PATH.fullmatch(path) is not None)
+            or (method == "POST" and DRIVER_STOP_PATH.fullmatch(path) is not None))
 ORDER_PATH = re.compile(r"^/api/v1/orders$")
 ROUTE_PATH = re.compile(r"^/api/v1/routes$")
 ASSIGN_PATH = re.compile(r"^/api/v1/routes/[0-9a-fA-F-]{36}/orders$")
 OPTIMIZED_GET_PATH = re.compile(r"^/api/v1/optimized-routes/[0-9a-fA-F-]{36}$")
 ASSIGN_DRIVER_PATH = re.compile(r"^/api/v1/optimized-routes/[0-9a-fA-F-]{36}/assign-driver$")
+DRIVER_STOP_PATH = re.compile(r"^/api/v1/driver/me/route/stops/[^/]{1,128}/(?:deliver|fail)$")
 MAX_BODY = 16_384
 ALLOWED = {
     ("GET", "/api/v1/orders"),
     ("GET", "/api/v1/driver/me/route"),
+    ("POST", "/api/v1/driver/me/route/start"),
+    ("POST", "/api/v1/driver/me/route/complete"),
     ("GET", "/api/v1/drivers"),
     ("POST", "/api/v1/orders"),
     ("POST", "/api/v1/routes"),
@@ -42,8 +67,7 @@ app = FastAPI(title="SmartRoute authenticated gateway", docs_url=None, redoc_url
 def require_config() -> None:
     if os.getenv("GOOGLE_CLOUD_PROJECT") != PROJECT:
         raise RuntimeError("Gateway pinned to approved project")
-    if os.getenv("SMARTROUTE_BACKEND_URL") != PRIVATE_API_URL:
-        raise RuntimeError("Gateway pinned to approved private Cloud Run backend")
+    backend_url()
     if os.getenv("SMARTROUTE_GATEWAY_ENABLED") != "true":
         raise RuntimeError("Gateway not enabled")
 
@@ -89,10 +113,7 @@ async def proxy(path: str, request: Request):
         raise HTTPException(503, "Gateway not configured") from None
 
     target_path = "/api/v1/" + path
-    if ((request.method, target_path) not in ALLOWED
-            and not (request.method == "POST" and ASSIGN_PATH.fullmatch(target_path))
-            and not (request.method == "GET" and OPTIMIZED_GET_PATH.fullmatch(target_path))
-            and not (request.method == "POST" and ASSIGN_DRIVER_PATH.fullmatch(target_path))):
+    if not permitted_endpoint(request.method, target_path):
         raise HTTPException(404, "Endpoint not supported")
 
     # A native client may omit Origin. Browser cross-origin access is denied
@@ -125,7 +146,7 @@ async def proxy(path: str, request: Request):
         async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
             upstream = await client.request(
                 method=request.method,
-                url=PRIVATE_API_URL + target_path,
+                url=backend_url() + target_path,
                 params=request.query_params,
                 content=body if request.method != "GET" else None,
                 headers=headers,
@@ -155,12 +176,7 @@ def preflight(path: str, request: Request):
     origins = {x.strip() for x in os.getenv("SMARTROUTE_ALLOWED_ORIGINS", "").split(",") if x.strip()}
     method = request.headers.get("access-control-request-method", "")
     target_path = "/api/v1/" + path
-    if origin not in origins or (
-        (method, target_path) not in ALLOWED
-        and not (method == "POST" and ASSIGN_PATH.fullmatch(target_path))
-        and not (method == "GET" and OPTIMIZED_GET_PATH.fullmatch(target_path))
-        and not (method == "POST" and ASSIGN_DRIVER_PATH.fullmatch(target_path))
-    ):
+    if origin not in origins or not permitted_endpoint(method, target_path):
         raise HTTPException(403, "CORS preflight not allowed")
     return Response(status_code=204, headers={
         "Access-Control-Allow-Origin": origin,
