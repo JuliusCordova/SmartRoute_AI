@@ -232,6 +232,7 @@ def list_available_drivers(
 
 # US-012/013/014: authenticated mobile DRIVER workflow.
 from .driver_workflow import WorkflowRequest, StopResultRequest, RouteReceipt, StopReceipt
+from .qa_write_guard import QaWriteGuardDenied
 from .firestore_driver_workflow import (
     FirestoreDriverWorkflowRepository, WorkflowConflict, WorkflowMissing,
 )
@@ -252,6 +253,8 @@ def _execute_driver_workflow(
         raise HTTPException(status_code=404, detail=str(exc)) from None
     except WorkflowConflict as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
+    except QaWriteGuardDenied:
+        raise HTTPException(status_code=403, detail="Driver write not permitted in QA") from None
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
     except Exception:
