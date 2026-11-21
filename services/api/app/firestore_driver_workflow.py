@@ -10,6 +10,7 @@ import json
 from google.cloud import firestore
 from .driver_workflow import WorkflowRequest, StopResultRequest
 from .firestore_config import firestore_client
+from .qa_write_guard import enforce_qa_write_guard
 
 
 class WorkflowConflict(Exception):
@@ -71,6 +72,9 @@ class FirestoreDriverWorkflowRepository:
                     raise WorkflowMissing("No active route assigned")
             if not isinstance(route_id, str) or not route_id or "/" in route_id or len(route_id) > 128:
                 raise WorkflowConflict("Invalid reservation route")
+
+            # Check QA restriction against the reservation-resolved route before any writes.
+            enforce_qa_write_guard(driver_uid=driver_uid, route_id=route_id)
 
             route_ref = self.db.collection("routes").document(route_id)
             event_id = sha256((driver_uid + ":" + route_id + ":" + key).encode()).hexdigest()
