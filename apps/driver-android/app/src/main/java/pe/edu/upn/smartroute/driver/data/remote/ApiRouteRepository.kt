@@ -20,12 +20,14 @@ class ApiRouteRepository(
     private val gatewayBaseUrl: String,
     private val auth: AuthRepository,
     private val transport: HttpTransport = UrlConnectionTransport(),
+    // Injectable for unit tests; the deployed application uses AppConfig's QA restriction.
+    private val qaWriteAllowed: (String?, String) -> Boolean = AppConfig::canMutateQaRoute,
 ) : RouteRepository {
 
     override val isDemoData: Boolean = false
 
     override fun canMutateRoute(routeId: String): Boolean =
-        AppConfig.canMutateQaRoute(auth.currentDriver.value?.uid, routeId)
+        qaWriteAllowed(auth.currentDriver.value?.uid, routeId)
 
     private val mutex = Mutex()
     private var cached: Route? = null
