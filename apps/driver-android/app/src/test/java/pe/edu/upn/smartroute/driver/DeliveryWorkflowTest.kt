@@ -49,6 +49,20 @@ class DeliveryWorkflowTest {
     }
 
     @Test
+    fun qa_guard_rejects_synthetic_driver_before_any_post() = runTest {
+        val transport = FakeTransport(
+            HttpResponse(200, JSONObject(DRIVER_ROUTE_JSON).put("version", 2).toString()),
+        )
+        val repo = ApiRouteRepository("https://gateway.example", FakeAuth(), transport)
+        repo.getAssignedRoutes("ignored")
+        try {
+            repo.startRoute(routeId, 2, key)
+            fail("La guardia QA debe rechazar la cuenta/ruta sintética")
+        } catch (_: RouteError.Forbidden) { }
+        assertTrue(transport.posts.isEmpty())
+    }
+
+    @Test
     fun parser_reads_authoritative_stop_statuses() {
         val route = DriverRouteParser.parse(
             activeRouteJson("ord-a" to "DELIVERED", "ord-b" to "FAILED"), "qa",
