@@ -21,14 +21,6 @@ object AppConfig {
     /** Sólo las builds debug pueden probar mutaciones; en release siempre quedan bloqueadas. */
     const val ENABLE_DELIVERY_MUTATIONS = true
 
-    private const val QA_DRIVER_UID = "zMuwbYHLfST2QNdNkfosoCbUZ003"
-    private const val QA_ROUTE_ID = "21e3de4b-4002-5870-bc4e-8eafb2826219"
-
-    /** Protección de cliente para QA; el backend valida Firebase y la reserva autoritativa. */
-    fun canMutate(uid: String?, routeId: String): Boolean =
-        BuildConfig.DEBUG && ENABLE_DELIVERY_MUTATIONS &&
-            uid == QA_DRIVER_UID && routeId == QA_ROUTE_ID
-
     // Armado independiente para pruebas manuales; desactivado en el repositorio.
     // Un build RELEASE jamás habilita mutaciones QA.
     const val ENABLE_QA_WRITE_TEST = false
