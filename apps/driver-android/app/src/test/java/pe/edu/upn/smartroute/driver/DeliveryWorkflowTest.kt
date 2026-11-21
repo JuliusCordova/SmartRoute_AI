@@ -37,7 +37,7 @@ class DeliveryWorkflowTest {
             HttpResponse(200, planned),
             HttpResponse(200, """{"id":"$routeId","status":"ACTIVE","version":3}"""),
         )
-        val repo = ApiRouteRepository("https://gateway.example", FakeAuth(), transport)
+        val repo = ApiRouteRepository("https://gateway.example", FakeAuth(), transport, qaWriteAllowed = { _, _ -> true })
         repo.getAssignedRoutes("ignored")
         val updated = repo.startRoute(routeId, 2, key)
         assertEquals(RouteStatus.ACTIVE, updated.status)
@@ -64,7 +64,7 @@ class DeliveryWorkflowTest {
             HttpResponse(200, activeRouteJson()),
             HttpResponse(200, """{"id":"$routeId","status":"ACTIVE","version":3,"order_id":"ord-a","order_status":"DELIVERED"}"""),
         )
-        val repo = ApiRouteRepository("https://gateway.example", FakeAuth(), transport)
+        val repo = ApiRouteRepository("https://gateway.example", FakeAuth(), transport, qaWriteAllowed = { _, _ -> true })
         repo.getAssignedRoutes("ignored")
         val updated = repo.recordStop(routeId, "ord-a", true, null, 2, key)
         assertEquals(3, updated.version)
@@ -84,7 +84,7 @@ class DeliveryWorkflowTest {
             HttpResponse(200, activeRouteJson()),
             HttpResponse(200, """{"id":"$routeId","status":"ACTIVE","version":3,"order_id":"ord-b","order_status":"FAILED"}"""),
         )
-        val repo = ApiRouteRepository("https://gateway.example", FakeAuth(), transport)
+        val repo = ApiRouteRepository("https://gateway.example", FakeAuth(), transport, qaWriteAllowed = { _, _ -> true })
         repo.getAssignedRoutes("ignored")
         try {
             repo.recordStop(routeId, "ord-b", false, " ", 2, key)
@@ -102,7 +102,7 @@ class DeliveryWorkflowTest {
             HttpResponse(200, activeRouteJson("ord-a" to "DELIVERED", "ord-b" to "FAILED")),
             HttpResponse(200, """{"id":"$routeId","status":"COMPLETED","version":3}"""),
         )
-        val repo = ApiRouteRepository("https://gateway.example", FakeAuth(), transport)
+        val repo = ApiRouteRepository("https://gateway.example", FakeAuth(), transport, qaWriteAllowed = { _, _ -> true })
         repo.getAssignedRoutes("ignored")
         val updated = repo.completeRoute(routeId, 2, key)
         assertEquals(RouteStatus.COMPLETED, updated.status)
@@ -113,7 +113,7 @@ class DeliveryWorkflowTest {
     @Test
     fun complete_rejects_pending_stops_without_post() = runTest {
         val transport = FakeTransport(HttpResponse(200, activeRouteJson()))
-        val repo = ApiRouteRepository("https://gateway.example", FakeAuth(), transport)
+        val repo = ApiRouteRepository("https://gateway.example", FakeAuth(), transport, qaWriteAllowed = { _, _ -> true })
         repo.getAssignedRoutes("ignored")
         try {
             repo.completeRoute(routeId, 2, key)
@@ -128,7 +128,7 @@ class DeliveryWorkflowTest {
             HttpResponse(200, activeRouteJson()),
             HttpResponse(200, """{"id":"$routeId","status":"ACTIVE","version":2,"order_id":"ord-a","order_status":"DELIVERED"}"""),
         )
-        val repo1 = ApiRouteRepository("https://gateway.example", FakeAuth(), wrong)
+        val repo1 = ApiRouteRepository("https://gateway.example", FakeAuth(), wrong, qaWriteAllowed = { _, _ -> true })
         repo1.getAssignedRoutes("ignored")
         try {
             repo1.recordStop(routeId, "ord-a", true, null, 2, key)
@@ -136,7 +136,7 @@ class DeliveryWorkflowTest {
         } catch (_: RouteError.InvalidResponse) { }
 
         val missing = FakeTransport(HttpResponse(200, activeRouteJson()), HttpResponse(404, ""))
-        val repo2 = ApiRouteRepository("https://gateway.example", FakeAuth(), missing)
+        val repo2 = ApiRouteRepository("https://gateway.example", FakeAuth(), missing, qaWriteAllowed = { _, _ -> true })
         repo2.getAssignedRoutes("ignored")
         try {
             repo2.recordStop(routeId, "ord-a", true, null, 2, key)
