@@ -23,7 +23,7 @@ object AppConfig {
 
     // Armado independiente para pruebas manuales; desactivado en el repositorio.
     // Un build RELEASE jamás habilita mutaciones QA.
-    const val ENABLE_QA_WRITE_TEST = false
+    const val ENABLE_QA_WRITE_TEST = true
     private const val QA_UID = "zMuwbYHLfST2QNdNkfosoCbUZ003"
     private const val QA_ROUTE_ID = "21e3de4b-4002-5870-bc4e-8eafb2826219"
 
