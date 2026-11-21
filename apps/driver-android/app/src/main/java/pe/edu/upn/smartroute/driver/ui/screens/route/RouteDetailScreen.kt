@@ -95,7 +95,7 @@ fun RouteDetailScreen(
                 is UiState.Error -> MessageView(s.message, "Reintentar", viewModel::load)
                 is UiState.NotFound -> MessageView(s.message, "Volver", onBack)
                 is UiState.Success -> {
-                    if (!viewModel.isDemoData && s.data.status == RouteStatus.PLANNED) {
+                    if (!viewModel.isDemoData && viewModel.canMutateRoute(s.data.id) && s.data.status == RouteStatus.PLANNED) {
                         if (s.data.version != null) {
                             Button(
                                 onClick = { confirmStart = true },
@@ -110,7 +110,7 @@ fun RouteDetailScreen(
                             )
                         }
                     }
-                    if ((viewModel.isDemoData || AppConfig.ENABLE_DELIVERY_MUTATIONS) &&
+                    if (viewModel.canMutateRoute(s.data.id) &&
                         s.data.status == RouteStatus.ACTIVE &&
                         s.data.progress.pending == 0 && s.data.stops.isNotEmpty() &&
                         s.data.version != null) {
