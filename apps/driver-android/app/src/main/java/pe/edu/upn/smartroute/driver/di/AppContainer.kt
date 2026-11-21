@@ -19,6 +19,18 @@ object AppConfig {
 
     /** Fail-closed hasta validar los endpoints de US-013/014 en GCP. */
     const val ENABLE_DELIVERY_MUTATIONS = false
+
+    // Armado independiente para pruebas manuales; desactivado en el repositorio.
+    // Un build RELEASE jamás habilita mutaciones QA.
+    const val ENABLE_QA_WRITE_TEST = false
+    private const val QA_UID = "zMuwbYHLfST2QNdNkfosoCbUZ003"
+    private const val QA_ROUTE_ID = "21e3de4b-4002-5870-bc4e-8eafb2826219"
+
+    fun canMutateQaRoute(uid: String?, routeId: String): Boolean =
+        pe.edu.upn.smartroute.driver.BuildConfig.DEBUG &&
+            ENABLE_DELIVERY_MUTATIONS && ENABLE_QA_WRITE_TEST &&
+            !FORCE_DEMO &&
+            uid == QA_UID && routeId == QA_ROUTE_ID
 }
 
 /**
