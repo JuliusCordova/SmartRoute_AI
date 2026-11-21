@@ -164,67 +164,77 @@ class FirestoreDriverAssignmentRepository:
 
 
     def own_route(self, *, driver_uid: str) -> DriverRoute | None:
-        """Read only via trusted UID extracted from a verified Firebase DRIVER.
+        """Project a driver's assigned route; after completion show final receipt.
 
-        Lookup is keyed by driver_assignments/{uid}, never by caller-supplied
-        route ID. No ORS calls, mutation, or global collection listing.
+        The UID comes exclusively from Firebase authentication. Stops preserve the
+        original visit order, while the status is read from authoritative orders.
         """
         if not driver_uid or "/" in driver_uid or len(driver_uid) > 128:
             raise DriverAssignmentConflict("Invalid driver identity")
         occupancy = self.db.collection("driver_assignments").document(driver_uid).get()
-        if not occupancy.exists:
-            return None
-        reservation = occupancy.to_dict() or {}
-        route_id = reservation.get("route_id")
-        if (reservation.get("driver_id") != driver_uid
-            or reservation.get("status") not in ("RESERVED", "ACTIVE")
-            or not isinstance(route_id, str) or not route_id or "/" in route_id):
-            raise DriverAssignmentConflict("Invalid driver reservation")
+        if occupancy.exists:
+            booking = occupancy.to_dict() or {}
+            if (booking.get("driver_id") != driver_uid
+                or booking.get("status") not in ("RESERVED", "ACTIVE")):
+                raise DriverAssignmentConflict("Invalid driver reservation")
+            route_id = booking.get("route_id")
+            expected_statuses = ("PLANNED", "ACTIVE")
+        else:
+            history = self.db.collection("driver_last_routes").document(driver_uid).get()
+            if not history.exists:
+                return None
+            previous = history.to_dict() or {}
+            if previous.get("driver_id") != driver_uid:
+                raise DriverAssignmentConflict("Invalid completed route history")
+            route_id = previous.get("route_id")
+            expected_statuses = ("COMPLETED",)
+
+        if not isinstance(route_id, str) or not route_id or "/" in route_id or len(route_id) > 128:
+            raise DriverAssignmentConflict("Invalid route reference")
         snap = self.db.collection("routes").document(route_id).get()
         if not snap.exists:
             raise DriverAssignmentConflict("Assigned route is unavailable")
         route = snap.to_dict() or {}
         if (route.get("driver_id") != driver_uid
             or route.get("route_type") != "OPTIMIZED"
-            or route.get("status") not in ("PLANNED", "ACTIVE")
-            or (reservation.get("status") == "RESERVED" and route.get("status") != "PLANNED")
-            or (reservation.get("status") == "ACTIVE" and route.get("status") != "ACTIVE")):
+            or route.get("status") not in expected_statuses):
             raise DriverAssignmentConflict("Assigned route is not accessible")
 
         ordered_ids = route.get("ordered_order_ids") or []
         if (not 1 <= len(ordered_ids) <= 10
-            or len(set(ordered_ids)) != len(ordered_ids)):
+            or len(set(ordered_ids)) != len(ordered_ids)
+            or any(not isinstance(oid, str) or "/" in oid for oid in ordered_ids)):
             raise DriverAssignmentConflict("Invalid saved route stops")
         snapshots = route.get("stop_snapshots") or []
-        by_id = {x["id"]: x for x in snapshots
-                 if isinstance(x, dict) and isinstance(x.get("id"), str)}
-        # Legacy route saved before the snapshot implementation: resolve only
-        # the exact orders belonging to the assigned route.
-        for oid in ordered_ids:
-            if oid not in by_id:
-                order_snap = self.db.collection("orders").document(oid).get()
-                if not order_snap.exists:
-                    raise DriverAssignmentConflict("Assigned stop not found")
-                data = order_snap.to_dict() or {}
-                if data.get("route_id") != route_id:
-                    raise DriverAssignmentConflict("Stop does not belong to route")
-                by_id[oid] = {
-                    "id": oid, "address_label": data.get("address_label"),
-                    "geo": data.get("geo"),
-                }
+        by_id = {
+            x["id"]: x for x in snapshots
+            if isinstance(x, dict) and isinstance(x.get("id"), str)
+        }
+        stops = []
+        for index, oid in enumerate(ordered_ids, start=1):
+            order_snap = self.db.collection("orders").document(oid).get()
+            if not order_snap.exists:
+                raise DriverAssignmentConflict("Assigned stop not found")
+            order = order_snap.to_dict() or {}
+            if order.get("route_id") != route_id:
+                raise DriverAssignmentConflict("Stop does not belong to route")
+            snapshot = by_id.get(oid) or {}
+            try:
+                stops.append(DriverStop(
+                    sequence=index, order_id=oid,
+                    address_label=snapshot.get("address_label") or order["address_label"],
+                    geo=snapshot.get("geo") or order["geo"],
+                    status=order["status"],
+                ))
+            except (KeyError, ValueError, TypeError) as exc:
+                raise DriverAssignmentConflict("Invalid stop data") from exc
         try:
-            stops = [DriverStop(
-                sequence=index, order_id=oid,
-                address_label=by_id[oid]["address_label"],
-                geo=by_id[oid]["geo"],
-            ) for index, oid in enumerate(ordered_ids, start=1)]
             return DriverRoute(
-                id=route_id, status=route["status"],
+                id=route_id, status=route["status"], version=route["version"],
                 depot=route["depot"], stops=stops,
                 optimized_seconds=route["optimized_seconds"],
                 optimized_meters=route["optimized_meters"],
                 assigned_at=route.get("assigned_at"),
-                started_at=route.get("started_at"),
             )
         except (KeyError, ValueError, TypeError) as exc:
             raise DriverAssignmentConflict("Invalid assigned route data") from exc

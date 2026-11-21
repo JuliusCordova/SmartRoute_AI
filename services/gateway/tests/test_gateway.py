@@ -110,21 +110,3 @@ def test_driver_own_route_cors_preflight():
             "Origin": "https://attacker.example", "Access-Control-Request-Method": "GET",
         })
         assert rejected.status_code == 403
-
-
-def test_us012_start_cors_and_explicit_allowlist():
-    with patch.dict(os.environ, ENV), patch("app.main.private_id_token") as mint:
-        valid = client.options("/api/v1/driver/me/route/start", headers={
-            "Origin": "https://example.org", "Access-Control-Request-Method": "POST",
-        })
-        assert valid.status_code == 204
-        assert valid.headers["access-control-allow-methods"] == "POST"
-        assert client.post("/api/v1/driver/me/route/start").status_code == 401
-        assert client.post("/api/v1/driver/me/route/finish").status_code == 404
-        assert client.options("/api/v1/driver/me/route/start", headers={
-            "Origin": "https://example.org", "Access-Control-Request-Method": "GET",
-        }).status_code == 403
-        assert client.options("/api/v1/driver/me/route/start", headers={
-            "Origin": "https://attacker.example", "Access-Control-Request-Method": "POST",
-        }).status_code == 403
-        mint.assert_not_called()

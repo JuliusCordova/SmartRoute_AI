@@ -24,12 +24,10 @@ class OptimizedRouteCreate(BaseModel):
 class OptimizedRoute(BaseModel):
     id: str
     route_type: Literal["OPTIMIZED"] = "OPTIMIZED"
-    status: Literal["PLANNED", "ACTIVE", "COMPLETED"] = "PLANNED"
+    status: Literal["PLANNED", "ACTIVE", "COMPLETED", "CANCELLED"] = "PLANNED"
     driver_id: str | None = None
     assigned_by: str | None = None
     assigned_at: datetime | None = None
-    started_at: datetime | None = None
-    started_by: str | None = None
     created_by: str
     depot: Geo
     order_ids: list[str]

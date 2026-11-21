@@ -13,16 +13,19 @@ def setup_assignment():
         pytest.skip("Firestore emulator required")
     from google.cloud import firestore
     from app.optimized_routes import OptimizedRoute
+    from app.orders import OrderCreate, new_order
     from app.firestore_driver_assignment import FirestoreDriverAssignmentRepository
     db = firestore.Client(project="demo-smartroute")
     suffix = uuid4().hex
     driver_id = "synthetic-driver-" + suffix
     now = datetime.now(timezone.utc)
+    order = new_order(OrderCreate(address_label="Destino ficticio Lima", geo={"latitude": -12.12, "longitude": -77.02}), actor_uid="synthetic-operator")
+    oid = order.id
     route = OptimizedRoute(
         id=str(uuid4()), created_by="synthetic-operator",
         depot={"latitude": -12.095, "longitude": -77.035},
-        order_ids=["order-1"], baseline_order_ids=["order-1"],
-        ordered_order_ids=["order-1"], baseline_seconds=300,
+        order_ids=[oid], baseline_order_ids=[oid],
+        ordered_order_ids=[oid], baseline_seconds=300,
         optimized_seconds=270, baseline_meters=4500, optimized_meters=4300,
         improvement_pct=10.0, matrix_fingerprint="a"*64,
         created_at=now, updated_at=now,
@@ -33,6 +36,7 @@ def setup_assignment():
         "active": True, "available": True,
     })
     db.collection("routes").document(route.id).create(route.model_dump(mode="python"))
+    db.collection("orders").document(oid).create(order.model_copy(update={"route_id": route.id, "status": "ASSIGNED"}).model_dump(mode="python"))
     return db, FirestoreDriverAssignmentRepository(db), route, driver_id
 
 
@@ -95,14 +99,10 @@ def test_own_route_read_is_scoped_to_driver_uid(setup_assignment):
     repo.assign(route.id, AssignDriverRequest(
         driver_id=driver_id, expected_version=1, idempotency_key=uuid4()),
         operator_uid="synthetic-operator")
-    db.collection("orders").document("order-1").set({
-        "route_id": route.id, "address_label": "Destino ficticio Lima",
-        "geo": {"latitude": -12.12, "longitude": -77.02},
-    })
     own = repo.own_route(driver_uid=driver_id)
     assert own is not None
     assert own.id == route.id and own.status == "PLANNED"
-    assert [s.order_id for s in own.stops] == ["order-1"]
+    assert [s.order_id for s in own.stops] == route.ordered_order_ids
     assert own.stops[0].address_label == "Destino ficticio Lima"
     assert repo.own_route(driver_uid="synthetic-driver-other") is None
 
