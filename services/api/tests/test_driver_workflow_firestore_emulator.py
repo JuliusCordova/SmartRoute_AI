@@ -9,6 +9,7 @@ from app.driver_workflow import WorkflowRequest, StopResultRequest
 from app.firestore_driver_workflow import (
     FirestoreDriverWorkflowRepository, WorkflowConflict,
 )
+from app.qa_write_guard import QaWriteGuardDenied
 from app.firestore_driver_assignment import FirestoreDriverAssignmentRepository
 
 
@@ -16,7 +17,7 @@ from app.firestore_driver_assignment import FirestoreDriverAssignmentRepository
     not os.getenv("FIRESTORE_EMULATOR_HOST"),
     reason="Requires Firestore emulator; never runs against live Firestore",
 )
-def test_driver_start_deliver_fail_complete_idempotency_and_ownership():
+def test_driver_start_deliver_fail_complete_idempotency_and_ownership(monkeypatch):
     from google.cloud import firestore
 
     from app.orders import OrderCreate, new_order
@@ -66,6 +67,18 @@ def test_driver_start_deliver_fail_complete_idempotency_and_ownership():
 
     workflow = FirestoreDriverWorkflowRepository(db)
     projection = FirestoreDriverAssignmentRepository(db)
+    monkeypatch.setenv("SMARTROUTE_QA_WRITE_GUARD", "true")
+    monkeypatch.setenv("SMARTROUTE_QA_DRIVER_UID", "other-qa-driver")
+    monkeypatch.setenv("SMARTROUTE_QA_ROUTE_ID", "other-qa-route")
+    with pytest.raises(QaWriteGuardDenied):
+        workflow.execute(driver_uid=uid, action="start",
+                         payload=WorkflowRequest(expected_version=2, idempotency_key=uuid4()))
+    assert db.collection("routes").document(route_id).get().to_dict()["status"] == "PLANNED"
+    assert db.collection("driver_assignments").document(uid).get().to_dict()["status"] == "RESERVED"
+    assert all(db.collection("orders").document(oid).get().to_dict()["status"] == "ASSIGNED"
+               for oid in order_ids)
+    monkeypatch.setenv("SMARTROUTE_QA_DRIVER_UID", uid)
+    monkeypatch.setenv("SMARTROUTE_QA_ROUTE_ID", route_id)
     start = WorkflowRequest(expected_version=2, idempotency_key=uuid4())
     receipt = workflow.execute(driver_uid=uid, action="start", payload=start)
     assert receipt == {"id": route_id, "status": "ACTIVE", "version": 3}
