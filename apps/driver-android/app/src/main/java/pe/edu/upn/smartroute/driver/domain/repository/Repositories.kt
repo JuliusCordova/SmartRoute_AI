@@ -9,6 +9,9 @@ interface RouteRepository {
     /** Indica si los datos son de demostración, para mostrarlo en pantalla (BR-12). */
     val isDemoData: Boolean
 
+    /** Capacidad de escribir limitada a la sesión y ruta QA; false por defecto. */
+    fun canMutateRoute(routeId: String): Boolean = false
+
     /**
      * Rutas del repartidor autenticado. Con el backend real, la identidad la decide el servidor
      * a partir del token: [driverId] solo se usa en modo demostración.
