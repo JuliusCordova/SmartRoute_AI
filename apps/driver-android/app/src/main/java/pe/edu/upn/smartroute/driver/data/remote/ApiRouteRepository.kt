@@ -6,6 +6,7 @@ import pe.edu.upn.smartroute.driver.domain.model.Route
 import pe.edu.upn.smartroute.driver.domain.model.RouteError
 import pe.edu.upn.smartroute.driver.domain.repository.AuthRepository
 import pe.edu.upn.smartroute.driver.domain.repository.RouteRepository
+import pe.edu.upn.smartroute.driver.di.AppConfig
 import java.io.IOException
 import org.json.JSONObject
 import java.util.UUID
@@ -22,6 +23,9 @@ class ApiRouteRepository(
 ) : RouteRepository {
 
     override val isDemoData: Boolean = false
+
+    override fun canMutateRoute(routeId: String): Boolean =
+        AppConfig.canMutateQaRoute(auth.currentDriver.value?.uid, routeId)
 
     private val mutex = Mutex()
     private var cached: Route? = null
@@ -62,6 +66,7 @@ class ApiRouteRepository(
     override suspend fun startRoute(routeId: String, expectedVersion: Int, idempotencyKey: String): Route =
         mutex.withLock {
             val uid = currentUid()
+            if (!canMutateRoute(routeId)) throw RouteError.Forbidden()
             resetCacheFor(uid)
             require(expectedVersion >= 1) { "Versión inválida" }
             // No se inicia una ruta ajena ni una que haya cambiado en la consulta anterior.
@@ -119,6 +124,7 @@ class ApiRouteRepository(
         routeId: String, orderId: String, delivered: Boolean, reason: String?,
         expectedVersion: Int, idempotencyKey: String,
     ): Route = mutex.withLock {
+        if (!canMutateRoute(routeId)) throw RouteError.Forbidden()
         resetCacheFor(currentUid())
         val route = cached?.takeIf { it.id == routeId } ?: fetchOwnRoute()
             ?: throw RouteError.Conflict()
@@ -160,6 +166,7 @@ class ApiRouteRepository(
      */
     override suspend fun completeRoute(routeId: String, expectedVersion: Int, idempotencyKey: String): Route =
         mutex.withLock {
+            if (!canMutateRoute(routeId)) throw RouteError.Forbidden()
             resetCacheFor(currentUid())
             val route = cached?.takeIf { it.id == routeId } ?: fetchOwnRoute()
                 ?: throw RouteError.Conflict()
