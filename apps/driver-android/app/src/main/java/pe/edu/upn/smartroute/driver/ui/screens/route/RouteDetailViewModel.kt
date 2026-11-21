@@ -31,7 +31,7 @@ class RouteDetailViewModel(
 
     /** Solo se ejecuta después de confirmación explícita en la UI. */
     fun startRoute() {
-        if (_starting.value || isDemoData) return
+        if (_starting.value || isDemoData || !pe.edu.upn.smartroute.driver.di.AppConfig.ENABLE_DELIVERY_MUTATIONS) return
         val route = (_state.value as? UiState.Success)?.data ?: return
         val version = route.version ?: return
         if (route.status != RouteStatus.PLANNED) return
