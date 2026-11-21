@@ -90,7 +90,7 @@ fun StopDetailScreen(
                     if (stop == null) {
                         MessageView("Este pedido no pertenece a la ruta.", "Volver", onBack)
                     } else {
-                        StopContent(s.data, stop, viewModel.isDemoData, mutating, mutationError,
+                        StopContent(s.data, stop, viewModel.isDemoData, viewModel.canMutateRoute(s.data.id), mutating, mutationError,
                             onDelivery = { confirmDelivery = true },
                             onFailure = { confirmFailure = true })
                     }
@@ -142,7 +142,7 @@ fun StopDetailScreen(
 
 @Composable
 private fun StopContent(
-    route: Route, stop: DeliveryStop, isDemoData: Boolean, mutating: Boolean, mutationError: String?,
+    route: Route, stop: DeliveryStop, isDemoData: Boolean, canMutate: Boolean, mutating: Boolean, mutationError: String?,
     onDelivery: () -> Unit, onFailure: () -> Unit,
 ) {
     Column(
@@ -185,7 +185,7 @@ private fun StopContent(
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Navegar a esta parada") }
             Spacer(Modifier.height(12.dp))
-            val enabled = !mutating && (isDemoData || AppConfig.ENABLE_DELIVERY_MUTATIONS) &&
+            val enabled = !mutating && (isDemoData || canMutate) &&
                 route.status == RouteStatus.ACTIVE && !stop.status.isClosed && route.version != null
             Button(onClick = onDelivery, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
                 Text(if (mutating) "Registrando..." else "Marcar como entregado")
@@ -198,8 +198,8 @@ private fun StopContent(
             if (mutationError != null) {
                 Text(mutationError, color = MaterialTheme.colorScheme.error)
             }
-            if (!isDemoData && !AppConfig.ENABLE_DELIVERY_MUTATIONS) {
-                Text("Entregas bloqueadas hasta validar y activar los endpoints US-013/014 en GCP.",
+            if (!isDemoData && !canMutate) {
+                Text("Entregas habilitadas solo para la cuenta y ruta QA autorizadas.",
                     style = MaterialTheme.typography.bodySmall)
             } else if (route.status != RouteStatus.ACTIVE) {
                 Text("Inicia el recorrido para registrar entregas.", style = MaterialTheme.typography.bodySmall)
