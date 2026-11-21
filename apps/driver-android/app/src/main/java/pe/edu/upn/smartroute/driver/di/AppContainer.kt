@@ -2,6 +2,7 @@ package pe.edu.upn.smartroute.driver.di
 
 import android.content.Context
 import com.google.firebase.FirebaseApp
+import pe.edu.upn.smartroute.driver.BuildConfig
 import pe.edu.upn.smartroute.driver.data.auth.FirebaseAuthRepository
 import pe.edu.upn.smartroute.driver.data.mock.MockAuthRepository
 import pe.edu.upn.smartroute.driver.data.mock.MockRouteRepository
@@ -17,8 +18,16 @@ object AppConfig {
     /** Pon true para forzar el modo demostración aunque Firebase esté configurado. */
     const val FORCE_DEMO = false
 
-    /** Fail-closed hasta validar los endpoints de US-013/014 en GCP. */
-    const val ENABLE_DELIVERY_MUTATIONS = false
+    /** Sólo las builds debug pueden probar mutaciones; en release siempre quedan bloqueadas. */
+    const val ENABLE_DELIVERY_MUTATIONS = true
+
+    private const val QA_DRIVER_UID = "zMuwbYHLfST2QNdNkfosoCbUZ003"
+    private const val QA_ROUTE_ID = "21e3de4b-4002-5870-bc4e-8eafb2826219"
+
+    /** Protección de cliente para QA; el backend valida Firebase y la reserva autoritativa. */
+    fun canMutate(uid: String?, routeId: String): Boolean =
+        BuildConfig.DEBUG && ENABLE_DELIVERY_MUTATIONS &&
+            uid == QA_DRIVER_UID && routeId == QA_ROUTE_ID
 
     // Armado independiente para pruebas manuales; desactivado en el repositorio.
     // Un build RELEASE jamás habilita mutaciones QA.
