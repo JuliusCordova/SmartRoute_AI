@@ -34,7 +34,7 @@ def test_assignment_invalid_payload_rejected(patch):
 
 def test_driver_route_contains_ordered_stops_without_other_drivers():
     route = DriverRoute.model_validate({
-        "id": str(uuid4()), "status": "PLANNED",
+        "id": str(uuid4()), "status": "PLANNED", "version": 2,
         "depot": {"latitude": -12.095, "longitude": -77.035},
         "stops": [{
             "sequence": 1, "order_id": "synthetic-order-01",
@@ -43,6 +43,7 @@ def test_driver_route_contains_ordered_stops_without_other_drivers():
         }],
         "optimized_seconds": 1500, "optimized_meters": 15260,
     })
+    assert route.version == 2
     assert route.stops[0].sequence == 1
     assert "driver_id" not in route.model_dump()
     assert route.data_origin == "estimated"

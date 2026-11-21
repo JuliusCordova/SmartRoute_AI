@@ -230,29 +230,80 @@ def list_available_drivers(
         raise HTTPException(status_code=503, detail="Driver list unavailable") from None
 
 
-# US-012: start only the authenticated DRIVER's reserved optimized route.
-from .route_execution import (
-    StartRouteRequest, RouteExecutionResult,
-    RouteExecutionMissing, RouteExecutionConflict,
+# US-012/013/014: authenticated mobile DRIVER workflow.
+from .driver_workflow import WorkflowRequest, StopResultRequest, RouteReceipt, StopReceipt
+from .qa_write_guard import QaWriteGuardDenied
+from .firestore_driver_workflow import (
+    FirestoreDriverWorkflowRepository, WorkflowConflict, WorkflowMissing,
 )
-from .firestore_route_execution import FirestoreRouteExecutionRepository
+
 
 @lru_cache(maxsize=1)
-def get_route_execution_repository() -> FirestoreRouteExecutionRepository:
-    return FirestoreRouteExecutionRepository()
+def get_driver_workflow_repository() -> FirestoreDriverWorkflowRepository:
+    return FirestoreDriverWorkflowRepository()
 
-@app.post("/api/v1/driver/me/route/start", response_model=RouteExecutionResult,
-          tags=["Route execution"])
-def start_my_driver_route(
-    payload: StartRouteRequest,
-    actor: UserContext = Depends(require_driver),
-    repo: FirestoreRouteExecutionRepository = Depends(get_route_execution_repository),
+
+def _execute_driver_workflow(
+    *, actor: UserContext, action: str, payload: WorkflowRequest | StopResultRequest,
+    repo: FirestoreDriverWorkflowRepository, order_id: str | None = None,
 ):
     try:
-        return repo.start(driver_uid=actor.uid, payload=payload)
-    except RouteExecutionMissing as exc:
+        return repo.execute(driver_uid=actor.uid, action=action, payload=payload, order_id=order_id)
+    except WorkflowMissing as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from None
-    except RouteExecutionConflict as exc:
+    except WorkflowConflict as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
+    except QaWriteGuardDenied:
+        raise HTTPException(status_code=403, detail="Driver write not permitted in QA") from None
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
     except Exception:
-        raise HTTPException(status_code=503, detail="Route execution unavailable") from None
+        raise HTTPException(status_code=503, detail="Driver workflow unavailable") from None
+
+
+@app.post("/api/v1/driver/me/route/start", response_model=RouteReceipt,
+          tags=["Driver workflow"])
+def start_my_route(
+    payload: WorkflowRequest,
+    actor: UserContext = Depends(require_driver),
+    repo: FirestoreDriverWorkflowRepository = Depends(get_driver_workflow_repository),
+):
+    return _execute_driver_workflow(
+        actor=actor, action="start", payload=payload, repo=repo,
+    )
+
+
+@app.post("/api/v1/driver/me/route/stops/{order_id}/deliver",
+          response_model=StopReceipt, tags=["Driver workflow"])
+def deliver_my_stop(
+    order_id: str, payload: StopResultRequest,
+    actor: UserContext = Depends(require_driver),
+    repo: FirestoreDriverWorkflowRepository = Depends(get_driver_workflow_repository),
+):
+    return _execute_driver_workflow(
+        actor=actor, action="deliver", payload=payload, repo=repo, order_id=order_id,
+    )
+
+
+@app.post("/api/v1/driver/me/route/stops/{order_id}/fail",
+          response_model=StopReceipt, tags=["Driver workflow"])
+def fail_my_stop(
+    order_id: str, payload: StopResultRequest,
+    actor: UserContext = Depends(require_driver),
+    repo: FirestoreDriverWorkflowRepository = Depends(get_driver_workflow_repository),
+):
+    return _execute_driver_workflow(
+        actor=actor, action="fail", payload=payload, repo=repo, order_id=order_id,
+    )
+
+
+@app.post("/api/v1/driver/me/route/complete", response_model=RouteReceipt,
+          tags=["Driver workflow"])
+def complete_my_route(
+    payload: WorkflowRequest,
+    actor: UserContext = Depends(require_driver),
+    repo: FirestoreDriverWorkflowRepository = Depends(get_driver_workflow_repository),
+):
+    return _execute_driver_workflow(
+        actor=actor, action="complete", payload=payload, repo=repo,
+    )

@@ -40,16 +40,17 @@ class DriverStop(BaseModel):
     order_id: str = Field(min_length=1, max_length=128)
     address_label: str
     geo: Geo
+    status: Literal["ASSIGNED", "IN_TRANSIT", "DELIVERED", "FAILED"] = "ASSIGNED"
 
 
 class DriverRoute(BaseModel):
     """Safe projection; only returned for the Firebase UID of the caller."""
     id: str
-    status: Literal["PLANNED", "ACTIVE"]
+    status: Literal["PLANNED", "ACTIVE", "COMPLETED"]
+    version: int = Field(ge=1)
     depot: Geo
     stops: list[DriverStop] = Field(min_length=1, max_length=10)
     optimized_seconds: int = Field(ge=0)
     optimized_meters: int = Field(ge=0)
     data_origin: Literal["estimated"] = "estimated"
     assigned_at: datetime | None = None
-    started_at: datetime | None = None
