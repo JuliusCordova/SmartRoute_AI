@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from app.auth import UserContext, require_driver
 from app.main import app, get_driver_workflow_repository
 from app.firestore_driver_workflow import WorkflowConflict, WorkflowMissing
+from app.qa_write_guard import QaWriteGuardDenied
 
 
 class FakeWorkflow:
@@ -93,6 +94,7 @@ def test_operator_cannot_execute_driver_actions():
 @pytest.mark.parametrize("error,status", [
     (WorkflowMissing("Stop absent"), 404),
     (WorkflowConflict("Stale version"), 409),
+    (QaWriteGuardDenied("Guard rejected"), 403),
     (ValueError("Reason required"), 422),
     (RuntimeError("Emulator offline"), 503),
 ])
