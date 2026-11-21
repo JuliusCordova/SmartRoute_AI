@@ -24,6 +24,8 @@ class RouteDetailViewModel(
 
     val isDemoData: Boolean get() = routes.isDemoData
 
+    fun canMutateRoute(routeId: String): Boolean = routes.canMutateRoute(routeId)
+
     private val _starting = MutableStateFlow(false)
     val starting: StateFlow<Boolean> = _starting.asStateFlow()
     private val _startError = MutableStateFlow<String?>(null)
@@ -31,8 +33,9 @@ class RouteDetailViewModel(
 
     /** Solo se ejecuta después de confirmación explícita en la UI. */
     fun startRoute() {
-        if (_starting.value || isDemoData || !pe.edu.upn.smartroute.driver.di.AppConfig.ENABLE_DELIVERY_MUTATIONS) return
+        if (_starting.value || isDemoData) return
         val route = (_state.value as? UiState.Success)?.data ?: return
+        if (!canMutateRoute(route.id)) return
         val version = route.version ?: return
         if (route.status != RouteStatus.PLANNED) return
         _starting.value = true
@@ -71,9 +74,9 @@ class RouteDetailViewModel(
 
     /** US-013: confirmación explícita, solo ACTIVE y solo con backend habilitado. */
     fun recordStop(orderId: String, delivered: Boolean, reason: String?) {
-        if ((!isDemoData && !pe.edu.upn.smartroute.driver.di.AppConfig.ENABLE_DELIVERY_MUTATIONS) ||
-            _mutating.value || _starting.value) return
+        if (_mutating.value || _starting.value) return
         val route = (_state.value as? UiState.Success)?.data ?: return
+        if (!isDemoData && !canMutateRoute(route.id)) return
         val stop = route.stop(orderId) ?: return
         val version = route.version ?: return
         if (route.status != RouteStatus.ACTIVE || stop.status.isClosed) return
@@ -101,10 +104,10 @@ class RouteDetailViewModel(
 
     /** US-014: cierre solo tras resolver todas las entregas. */
     fun completeRoute() {
-        if (isDemoData || !pe.edu.upn.smartroute.driver.di.AppConfig.ENABLE_DELIVERY_MUTATIONS ||
-            _mutating.value || _starting.value) return
+        if (isDemoData || _mutating.value || _starting.value) return
         val route = (_state.value as? UiState.Success)?.data ?: return
         val version = route.version ?: return
+        if (!canMutateRoute(route.id)) return
         if (route.status != RouteStatus.ACTIVE || route.progress.pending != 0 || route.stops.isEmpty()) return
         val key = idempotencyFor("complete:${route.id}:$version")
         _mutating.value = true
