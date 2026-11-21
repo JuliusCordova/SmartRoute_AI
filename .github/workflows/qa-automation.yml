@@ -1,0 +1,165 @@
+name: SmartRoute QA Automation
+
+on:
+  pull_request:
+  push:
+    branches:
+      - feat/mobile-driver-android-base
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-automation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-firestore:
+    name: Backend + Firestore Emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GOOGLE_CLOUD_PROJECT: demo-smartroute
+      FIREBASE_PROJECT_ID: demo-smartroute
+      FIRESTORE_EMULATOR_REQUIRED: "1"
+      FIRESTORE_DATABASE_ID: "(default)"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/api/requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+      - name: Install backend and Firebase CLI
+        run: |
+          python -m pip install -r services/api/requirements.txt
+          python -m pip check
+          npm install --global firebase-tools
+      - name: Verify Python syntax and shell guard
+        run: |
+          python -m compileall -q services/api/app services/api/tests
+          bash -n scripts/qa/run-api-emulator-tests.sh
+      - name: Full backend regression on isolated Firestore Emulator
+        run: |
+          firebase emulators:exec --only firestore --project demo-smartroute             'bash -c "cd services/api && bash ../../scripts/qa/run-api-emulator-tests.sh"'
+      - name: Upload backend JUnit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-backend-firestore-junit
+          path: services/api/qa-results/backend-junit.xml
+          if-no-files-found: warn
+          retention-days: 14
+
+  gateway:
+    name: Gateway auth + routing
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/gateway/requirements.txt
+      - name: Install gateway dependencies
+        run: python -m pip install -r services/gateway/requirements.txt && python -m pip check
+      - name: Gateway tests
+        working-directory: services/gateway
+        run: |
+          mkdir -p qa-results
+          python -m pytest -q tests --junitxml=qa-results/gateway-junit.xml
+      - name: Upload gateway JUnit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-gateway-junit
+          path: services/gateway/qa-results/gateway-junit.xml
+          if-no-files-found: warn
+          retention-days: 14
+
+  android:
+    name: Android JVM + debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: apps/driver-android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK platform
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Test and assemble local-only debug build
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug
+      - name: Upload Android JVM XML evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-android-junit
+          path: apps/driver-android/app/build/test-results/testDebugUnitTest/*.xml
+          if-no-files-found: warn
+          retention-days: 14
+      # APK artifact is intentionally not uploaded: QA build enables controlled
+      # mutations for a specific driver/route and must not be broadly distributed.
+
+  operator-web:
+    name: Operator React build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install operator dependencies
+        run: npm install --prefix apps/operator-web --no-audit --no-fund
+      - name: Build operator web
+        run: npm run build --prefix apps/operator-web
+      - name: Check Docker image
+        run: docker build -t smartroute-operator-qa:${{ github.sha }} apps/operator-web
+
+  qa-summary:
+    name: QA gate summary
+    if: always()
+    needs: [backend-firestore, gateway, android, operator-web]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Publish QA gate results
+        env:
+          BACKEND: ${{ needs.backend-firestore.result }}
+          GATEWAY: ${{ needs.gateway.result }}
+          ANDROID: ${{ needs.android.result }}
+          WEB: ${{ needs.operator-web.result }}
+        run: |
+          echo '## SmartRoute QA Automation' >> "$GITHUB_STEP_SUMMARY"
+          echo '| Gate | Result |' >> "$GITHUB_STEP_SUMMARY"
+          echo '| --- | --- |' >> "$GITHUB_STEP_SUMMARY"
+          echo "| Backend + Firestore Emulator | $BACKEND |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Gateway | $GATEWAY |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Android JVM + APK | $ANDROID |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Operator web build | $WEB |" >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No GCP credentials, no Cloud Run deploy and no production Firestore writes.' >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$BACKEND" != success || "$GATEWAY" != success || "$ANDROID" != success || "$WEB" != success ]]; then
+            echo "::error::QA gate failed; inspect job artifacts"
+            exit 1
+          fi
