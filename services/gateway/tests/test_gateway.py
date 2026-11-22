@@ -170,3 +170,21 @@ def test_us008_gps_write_and_read_allowlist_and_cors():
             "Origin":"https://attacker.example","Access-Control-Request-Method":"POST"})
         assert bad.status_code==403
         mint.assert_not_called()
+
+
+def test_qa_bca4df3_backend_allowlist_exact_and_denies_unapproved_variants():
+    from app.main import APPROVED_API_URLS, backend_url, PRIVATE_API_URL
+    from app.main import permitted_endpoint
+    import pytest
+
+    approved = "https://qa-bca4df3---smartroute-api-staging-mkqutd4koq-uc.a.run.app"
+    assert approved in APPROVED_API_URLS
+    with patch.dict(os.environ, {"SMARTROUTE_BACKEND_URL": approved}):
+        assert backend_url() == approved
+    for rejected in (approved + "/extra", approved.replace("qa-bca4df3", "qa-unknown"), "https://attacker.example"):
+        assert rejected not in APPROVED_API_URLS
+        with patch.dict(os.environ, {"SMARTROUTE_BACKEND_URL": rejected}):
+            with pytest.raises(RuntimeError, match="Unapproved private SmartRoute backend URL"):
+                backend_url()
+    assert PRIVATE_API_URL in APPROVED_API_URLS
+    assert not permitted_endpoint("GET", "/api/v1/private-admin")
