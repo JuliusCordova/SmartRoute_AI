@@ -45,3 +45,22 @@ test("paginación recorre cursores y expone límite de cobertura",async()=>{
 test("detecta repetición de cursor y no la interpreta como cobertura total",async()=>{
   await assert.rejects(()=>fetchPaged(async()=>({items:[],next_cursor:"same"}),{maxPages:3}),/repetido/);
 });
+
+import {distributionCenterReady,distributionCenterPayload} from "../src/distributionCenter.js";
+const inLima=(lat,lng)=>lat>=-12.3&&lat<=-11.8&&lng>=-77.2&&lng<=-76.8;
+test("Centro de distribución: exige selección y confirmación cuando corresponde",()=>{
+  const approximate={label:"Av. de prueba, Lima",latitude:-12.1,longitude:-77.03,precision:"approximate"};
+  assert.equal(distributionCenterReady(null,true,"Centro QA",inLima),false);
+  assert.equal(distributionCenterReady(approximate,false,"Centro QA",inLima),false);
+  assert.equal(distributionCenterReady(approximate,true,"   ",inLima),false);
+  assert.equal(distributionCenterReady(approximate,true,"Centro QA",inLima),true);
+});
+test("Centro de distribución: rechaza puntos externos sin inventar ubicación",()=>{
+  const invalid={label:"Fuera del piloto",latitude:-10.1,longitude:-75.2,precision:"precise"};
+  assert.equal(distributionCenterReady(invalid,true,"Centro QA",inLima),false);
+});
+test("Centro de distribución: envía coordenadas seleccionadas, sin alterar origen histórico",()=>{
+  const selected={label:"Centro QA",latitude:-12.1,longitude:-77.03,precision:"precise"};
+  assert.deepEqual(distributionCenterPayload(selected),{latitude:-12.1,longitude:-77.03});
+  assert.throws(()=>distributionCenterPayload(null),/no seleccionado/);
+});
