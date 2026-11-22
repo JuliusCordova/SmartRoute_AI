@@ -49,6 +49,7 @@ ROUTE_PATH = re.compile(r"^/api/v1/routes$")
 ASSIGN_PATH = re.compile(r"^/api/v1/routes/[0-9a-fA-F-]{36}/orders$")
 OPTIMIZED_GET_PATH = re.compile(r"^/api/v1/optimized-routes/[0-9a-fA-F-]{36}$")
 ASSIGN_DRIVER_PATH = re.compile(r"^/api/v1/optimized-routes/[0-9a-fA-F-]{36}/assign-driver$")
+GPS_READ_PATH = re.compile(r"^/api/v1/routes/[0-9a-fA-F-]{36}/location$")
 DRIVER_STOP_PATH = re.compile(r"^/api/v1/driver/me/route/stops/[^/]{1,128}/(?:deliver|fail)$")
 CENTER_ID_PATH = re.compile(r"^/api/v1/distribution-centers/[0-9a-fA-F-]{36}$")
 MAX_BODY = 16_384
@@ -57,6 +58,7 @@ ALLOWED = {
     ("POST", "/api/v1/distribution-centers"),
     ("GET", "/api/v1/distribution-centers"),
     ("GET", "/api/v1/driver/me/route"),
+    ("POST", "/api/v1/driver/me/location"),
     ("POST", "/api/v1/driver/me/route/start"),
     ("POST", "/api/v1/driver/me/route/complete"),
     ("GET", "/api/v1/drivers"),
