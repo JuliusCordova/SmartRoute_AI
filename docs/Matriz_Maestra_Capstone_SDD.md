@@ -10,6 +10,9 @@
 4. No inventar evidencias, porcentajes, muestras, fuentes bibliográficas ni mejoras; marcar explícitamente pruebas simuladas y resultados reales.
 5. `MED-xx` representa decisiones de medición propuestas para SmartRoute, no exigencias literales nuevas de la UPN.
 
+
+> **Actualización 22/11/2026 — evidencia E2E vinculada, sin cambiar estados de rúbrica a ciegas.** Se demostró un caso funcional QA de la **misma ruta** operador→conductor→operador, con `COMPLETED`, 5 entregadas y 1 fallida; ver [acta](evidence/E2E_OPERADOR_ANDROID_QA_2026-11-22.md), [SDD implementado](SmartRoute_AI_Charter_SDD_v1.md) y [trazabilidad](SDD_TRACEABILITY.md). Este material respalda **parcialmente** `EF-C13-01`, `EF-C13-02`, `INF-05` y `MED-02`, pero **no cierra ninguno automáticamente**: faltan la base congelada de requisitos P0, evidencias binaras anexas, pruebas negativas y aceptación según rúbrica. Las métricas ORS son `estimated`, no mediciones `observed` de OE1–OE3. Los códigos US-011–014 del backlog técnico no equivalen a los US-011–014 originales (ver tabla de alias en adenda SDD v2.1).
+
 ## Matriz de cumplimiento (36 controles)
 
 | ID | Competencia/Origen | Sección UPN | Criterio y umbral | Evidencia planificada | Semana | Estado |
