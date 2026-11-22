@@ -307,3 +307,94 @@ def complete_my_route(
     return _execute_driver_workflow(
         actor=actor, action="complete", payload=payload, repo=repo,
     )
+
+
+# US-017: persistent operator-managed distribution center catalog.
+from .distribution_centers import (
+    CenterCreate, CenterUpdate, CenterDeactivate, DistributionCenter, CenterPage,
+    CenterNotFound, CenterConflict,
+)
+from .firestore_distribution_centers import FirestoreCenterRepository
+
+@lru_cache(maxsize=1)
+def get_center_repository() -> FirestoreCenterRepository:
+    return FirestoreCenterRepository()
+
+
+@app.post("/api/v1/distribution-centers", response_model=DistributionCenter, status_code=201, tags=["Distribution centers"])
+def add_distribution_center(
+    payload: CenterCreate,
+    actor: UserContext = Depends(require_operator),
+    repo: FirestoreCenterRepository = Depends(get_center_repository),
+):
+    try:
+        return repo.create(payload, actor_uid=actor.uid)
+    except CenterConflict as exc:
+        raise HTTPException(409, str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
+    except Exception:
+        raise HTTPException(503, "Distribution center storage unavailable") from None
+
+
+@app.get("/api/v1/distribution-centers", response_model=CenterPage, tags=["Distribution centers"])
+def list_distribution_centers(
+    limit: int = Query(default=20, ge=1, le=50),
+    cursor: str | None = Query(default=None, min_length=1, max_length=128),
+    actor: UserContext = Depends(require_operator),
+    repo: FirestoreCenterRepository = Depends(get_center_repository),
+):
+    try:
+        return repo.list(limit=limit, after=cursor)
+    except ValueError:
+        raise HTTPException(422, "Invalid distribution center cursor") from None
+    except Exception:
+        raise HTTPException(503, "Distribution center storage unavailable") from None
+
+
+@app.get("/api/v1/distribution-centers/{center_id}", response_model=DistributionCenter, tags=["Distribution centers"])
+def get_distribution_center(
+    center_id: str,
+    actor: UserContext = Depends(require_operator),
+    repo: FirestoreCenterRepository = Depends(get_center_repository),
+):
+    try:
+        return repo.get(center_id)
+    except CenterNotFound as exc:
+        raise HTTPException(404, str(exc)) from None
+    except Exception:
+        raise HTTPException(503, "Distribution center storage unavailable") from None
+
+
+@app.put("/api/v1/distribution-centers/{center_id}", response_model=DistributionCenter, tags=["Distribution centers"])
+def update_distribution_center(
+    center_id: str, payload: CenterUpdate,
+    actor: UserContext = Depends(require_operator),
+    repo: FirestoreCenterRepository = Depends(get_center_repository),
+):
+    try:
+        return repo.update(center_id, payload)
+    except CenterNotFound as exc:
+        raise HTTPException(404, str(exc)) from None
+    except CenterConflict as exc:
+        raise HTTPException(409, str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
+    except Exception:
+        raise HTTPException(503, "Distribution center storage unavailable") from None
+
+
+@app.delete("/api/v1/distribution-centers/{center_id}", response_model=DistributionCenter, tags=["Distribution centers"])
+def deactivate_distribution_center(
+    center_id: str, payload: CenterDeactivate,
+    actor: UserContext = Depends(require_operator),
+    repo: FirestoreCenterRepository = Depends(get_center_repository),
+):
+    try:
+        return repo.deactivate(center_id, expected_version=payload.expected_version)
+    except CenterNotFound as exc:
+        raise HTTPException(404, str(exc)) from None
+    except CenterConflict as exc:
+        raise HTTPException(409, str(exc)) from None
+    except Exception:
+        raise HTTPException(503, "Distribution center storage unavailable") from None
