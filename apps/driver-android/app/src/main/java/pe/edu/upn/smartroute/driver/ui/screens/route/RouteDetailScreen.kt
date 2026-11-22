@@ -51,6 +51,13 @@ import pe.edu.upn.smartroute.driver.ui.components.displayRouteId
 import pe.edu.upn.smartroute.driver.ui.components.label
 import java.util.Locale
 import pe.edu.upn.smartroute.driver.di.AppConfig
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.delay
+import java.time.Instant
 import androidx.compose.material3.OutlinedButton
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -68,6 +75,33 @@ fun RouteDetailScreen(
     val startError by viewModel.startError.collectAsStateWithLifecycle()
     val mutating by viewModel.mutating.collectAsStateWithLifecycle()
     val mutationError by viewModel.mutationError.collectAsStateWithLifecycle()
+    val gpsError by viewModel.gpsError.collectAsStateWithLifecycle()
+    val gpsLastSent by viewModel.gpsLastSent.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    var consentGps by remember(routeId) { mutableStateOf(false) }
+    var gpsMessage by remember(routeId) { mutableStateOf<String?>(null) }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        consentGps = permissions.values.any { it }
+        gpsMessage = if (consentGps) "GPS autorizado para esta ruta." else "GPS denegado; no se transmitirá ubicación."
+    }
+    val activeRoute = (state as? UiState.Success)?.data
+    val gpsActive = activeRoute?.status == RouteStatus.ACTIVE && viewModel.canMutateRoute(routeId)
+    // Foreground-only: leaving the route screen or completing cancels this coroutine.
+    LaunchedEffect(gpsActive, consentGps, routeId) {
+        while (gpsActive && consentGps) {
+            val fix = RouteGps.freshFix(context)
+            if (fix == null) {
+                gpsMessage = "No hay posición GPS reciente; verifica permisos y ubicación."
+            } else {
+                viewModel.sendGps(fix.latitude, fix.longitude, fix.accuracy,
+                    Instant.ofEpochMilli(fix.time).toString())
+                gpsMessage = "GPS capturado; precisión: " + fix.accuracy.toInt() + " m."
+            }
+            delay(30_000L)
+        }
+    }
     var confirmStart by remember { mutableStateOf(false) }
     var confirmComplete by remember { mutableStateOf(false) }
     // Al regresar desde una parada, consultar el estado definitivo del servidor.
@@ -109,6 +143,32 @@ fun RouteDetailScreen(
                                 color = MaterialTheme.colorScheme.error,
                             )
                         }
+                    }
+                    if (s.data.status == RouteStatus.ACTIVE && !viewModel.isDemoData && viewModel.canMutateRoute(s.data.id)) {
+                        if (!consentGps) {
+                            OutlinedButton(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                                onClick = {
+                                    if (RouteGps.permitted(context)) {
+                                        consentGps = true
+                                        gpsMessage = "GPS consentido solo durante esta ruta activa."
+                                    } else {
+                                        permissionLauncher.launch(arrayOf(
+                                            Manifest.permission.ACCESS_FINE_LOCATION,
+                                            Manifest.permission.ACCESS_COARSE_LOCATION,
+                                        ))
+                                    }
+                                }
+                            ) { Text("Autorizar GPS durante ruta activa") }
+                        } else {
+                            OutlinedButton(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                                onClick = { consentGps = false; gpsMessage = "GPS detenido." }
+                            ) { Text("Detener GPS") }
+                        }
+                        gpsMessage?.let { Text(it, modifier = Modifier.padding(horizontal = 16.dp)) }
+                        gpsLastSent?.let { Text("Último envío: $it", modifier = Modifier.padding(horizontal = 16.dp)) }
+                        gpsError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp)) }
                     }
                     if (viewModel.canMutateRoute(s.data.id) &&
                         s.data.status == RouteStatus.ACTIVE &&
