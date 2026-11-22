@@ -64,4 +64,4 @@ class FirestoreDriverLocationRepository:
         if data.get("driver_id")!=(route.to_dict() or {}).get("driver_id"):
             raise GPSMissing("Location owner mismatch")
         return LastGPS(**{k:data[k] for k in ("route_id","driver_id","latitude","longitude","accuracy_m","captured_at","stored_at")},
-                       status=freshness(data["stored_at"]))
+                       status=freshness(data["captured_at"]))
