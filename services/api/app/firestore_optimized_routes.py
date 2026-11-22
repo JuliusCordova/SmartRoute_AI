@@ -22,7 +22,7 @@ from .route_preview import PreviewRequest, StopPoint, compute_preview, ORS_DIREC
 
 def _payload_hash(payload: OptimizedRouteCreate) -> str:
     return sha256(json.dumps(
-        {"depot": payload.depot.model_dump(), "order_ids": payload.order_ids},
+        {"depot": payload.depot.model_dump(), "distribution_center_id": payload.distribution_center_id, "order_ids": payload.order_ids},
         sort_keys=True,
     ).encode()).hexdigest()
 
@@ -129,6 +129,20 @@ class FirestoreOptimizedRouteRepository:
                 raise OptimizedRouteConflict("Idempotency key reused for a different request")
             return OptimizedRoute.model_validate(saved), False
 
+        center_ref = None
+        center_record = None
+        if payload.distribution_center_id:
+            if "/" in payload.distribution_center_id:
+                raise OptimizedRouteConflict("Invalid center identifier")
+            center_ref = self.db.collection("distribution_centers").document(payload.distribution_center_id)
+            center_snap = center_ref.get()
+            if not center_snap.exists:
+                raise OptimizedRouteMissing("Centro no encontrado")
+            center_record = center_snap.to_dict() or {}
+            if not center_record.get("active", False):
+                raise OptimizedRouteConflict("Centro inactivo")
+            if center_record.get("geo") != payload.depot.model_dump():
+                raise OptimizedRouteConflict("El origen no coincide con la sede seleccionada")
         order_refs = [self.db.collection("orders").document(oid) for oid in payload.order_ids]
         docs = [ref.get() for ref in order_refs]
         if any(not snap.exists for snap in docs):
@@ -149,6 +163,8 @@ class FirestoreOptimizedRouteRepository:
         now = datetime.now(timezone.utc)
         route = OptimizedRoute(
             id=route_id, created_by=actor_uid, depot=payload.depot,
+            distribution_center_id=payload.distribution_center_id,
+            distribution_center_name=center_record.get("name") if center_record else None,
             order_ids=payload.order_ids, baseline_order_ids=payload.order_ids,
             ordered_order_ids=preview.ordered_order_ids,
             baseline_seconds=preview.baseline_seconds, optimized_seconds=preview.optimized_seconds,
@@ -171,6 +187,15 @@ class FirestoreOptimizedRouteRepository:
         def _commit(tx):
             current_route = route_ref.get(transaction=tx)
             current_orders = [ref.get(transaction=tx) for ref in order_refs]
+            if center_ref is not None:
+                current_center_snap = center_ref.get(transaction=tx)
+                if not current_center_snap.exists:
+                    raise OptimizedRouteConflict("Centro eliminado durante la optimizacion")
+                current_center = current_center_snap.to_dict() or {}
+                if (not current_center.get("active") or
+                    current_center.get("version") != center_record.get("version") or
+                    current_center.get("geo") != payload.depot.model_dump()):
+                    raise OptimizedRouteConflict("Centro cambiado durante la optimizacion")
             if current_route.exists:
                 saved = current_route.to_dict()
                 if saved.get("request_hash") != fingerprint or saved.get("created_by") != actor_uid:
