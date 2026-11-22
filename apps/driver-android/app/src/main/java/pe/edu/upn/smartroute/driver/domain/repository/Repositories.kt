@@ -36,6 +36,12 @@ interface RouteRepository {
         throw UnsupportedOperationException("Registro de entregas no disponible")
     }
 
+    /** US-V1-008: consented position, backend verifies ACTIVE route and ownership. */
+    suspend fun submitLocation(routeId: String, latitude: Double, longitude: Double,
+                               accuracyMeters: Float, capturedAtIso: String) {
+        throw UnsupportedOperationException("GPS no disponible en modo demo")
+    }
+
     /** US-014: cierra el recorrido tras resolver la totalidad de paradas. */
     suspend fun completeRoute(routeId: String, expectedVersion: Int, idempotencyKey: String): Route {
         throw UnsupportedOperationException("Cierre no disponible")
