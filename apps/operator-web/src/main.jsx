@@ -6,6 +6,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./style.css";
 import {ORDER_STATES,ROUTE_STATES,stateLabel,filterOrders,filterRoutes,summarizeOperations,fetchPaged} from "./operations.js";
+import {distributionCenterReady,distributionCenterPayload} from "./distributionCenter.js";
 
 const cfg = window.__SMARTROUTE_CONFIG__ || {};
 const configured = Boolean(cfg.firebase?.apiKey && cfg.firebase?.appId && cfg.gatewayUrl);
@@ -16,6 +17,7 @@ const inside = (lat,lng) => lat>=-12.30&&lat<=-11.80&&lng>=-77.20&&lng<=-76.80;
 const mins = v=>Math.round(v/60).toLocaleString("es-PE")+" min";
 const km = v=>(v/1000).toLocaleString("es-PE",{maximumFractionDigits:2})+" km";
 const starting = {address_label:"",latitude:null,longitude:null,precision:null};
+const initialCenter={label:"Ubicación inicial del centro (preconfigurada)",latitude:-12.095,longitude:-77.035,precision:"legacy"};
 
 async function api(path, method, token, data){
   const resp=await fetch(GATEWAY+path,{method,headers:{"Authorization":"Bearer "+token, ...(data?{"Content-Type":"application/json"}:{})},body:data?JSON.stringify(data):undefined,cache:"no-store"});
@@ -24,7 +26,7 @@ async function api(path, method, token, data){
   return body;
 }
 
-function MapPanel({orders,depot,preview,chosen,savedRoute}){
+function MapPanel({orders,depot,preview,chosen,savedRoute,centerLabel}){
   const ref=useRef(null), map=useRef(null), layers=useRef(null);
   useEffect(()=>{
     if(!ref.current)return;
@@ -43,7 +45,7 @@ function MapPanel({orders,depot,preview,chosen,savedRoute}){
       const d=[savedRoute.depot.latitude,savedRoute.depot.longitude];
       const path=[d];
       L.circleMarker(d,{radius:10,color:"#102739",fillColor:"#f0b43d",fillOpacity:1})
-        .bindPopup("Depósito de ruta guardada").addTo(group);
+        .bindPopup("Centro de distribución de la ruta guardada").addTo(group);
       (savedRoute.stops||[]).forEach(stop=>{
         const position=[stop.geo.latitude,stop.geo.longitude];
         path.push(position);
@@ -64,7 +66,7 @@ function MapPanel({orders,depot,preview,chosen,savedRoute}){
     const selected=orders.filter(o=>o.checked);
     const valid=selected.filter(o=>inside(o.geo.latitude,o.geo.longitude));
     const points=[[Number(depot.latitude),Number(depot.longitude)]];
-    if(inside(...points[0]))L.circleMarker(points[0],{radius:9,color:"#102739",fillColor:"#f0b43d",fillOpacity:1}).bindPopup("Depósito").addTo(group);
+    if(inside(...points[0]))L.circleMarker(points[0],{radius:9,color:"#102739",fillColor:"#f0b43d",fillOpacity:1}).bindPopup(centerLabel||"Centro de distribución").addTo(group);
     valid.forEach((o,i)=>{
       const pt=[o.geo.latitude,o.geo.longitude];points.push(pt);
       L.circleMarker(pt,{radius:8,color:"#143d4b",fillColor:"#31a8b4",fillOpacity:1}).bindPopup(String(i+1)+". "+o.address_label).addTo(group);
@@ -85,7 +87,7 @@ function MapPanel({orders,depot,preview,chosen,savedRoute}){
       L.polyline([...points,points[0]],{color:"#758c9d",weight:2,dashArray:"5 7"}).addTo(group);
     }
     if(points.length>1) map.current.fitBounds(L.latLngBounds(points).pad(.25),{maxZoom:14});
-  },[orders,depot,preview,chosen,savedRoute]);
+  },[orders,depot,preview,chosen,savedRoute,centerLabel]);
   return <div className="mapWrap"><div ref={ref} className="map" /><span className="mapCaption">{savedRoute ? (savedRoute.geometry_origin==="openrouteservice"?"Ruta guardada · recorrido vial estimado":"Ruta guardada · conectores esquemáticos, NO recorrido vial") : preview ? (preview.route_geometry?"Recorrido vial estimado":"Conectores esquemáticos; matriz vial estimada"):"Orden original · conectores esquemáticos"}</span></div>;
 }
 
@@ -141,6 +143,10 @@ function App(){
   const [suggestions,setSuggestions]=useState([]),[searchState,setSearchState]=useState(""),[confirmed,setConfirmed]=useState(false),[searching,setSearching]=useState(false);
   const [savedRoutes,setSavedRoutes]=useState([]),[savedRoute,setSavedRoute]=useState(null);
   const [drivers,setDrivers]=useState([]),[selectedDriver,setSelectedDriver]=useState("");
+  const [centerName,setCenterName]=useState("Centro de distribución");
+  const [centerQuery,setCenterQuery]=useState(initialCenter.label),[centerChoice,setCenterChoice]=useState(initialCenter);
+  const [centerSuggestions,setCenterSuggestions]=useState([]),[centerSearchState,setCenterSearchState]=useState(""),[centerSearching,setCenterSearching]=useState(false);
+  const [centerConfirmed,setCenterConfirmed]=useState(true);
   const pendingSaveKey=useRef(null),pendingAssignmentKey=useRef(null);
   const [orderState,setOrderState]=useState("ALL"),[orderSearch,setOrderSearch]=useState("");
   const [routeListState,setRouteListState]=useState("ALL");
@@ -162,6 +168,28 @@ function App(){
     },500);
     return ()=>{live=false;clearTimeout(t);};
   },[form.address_label,form.latitude,user]);
+  useEffect(()=>{
+    if(!user||centerChoice||centerQuery.trim().length<3){
+      setCenterSuggestions([]);setCenterSearchState("");setCenterSearching(false);return;
+    }
+    let active=true;setCenterSearching(true);setCenterSearchState("Buscando direcciones…");
+    const timer=setTimeout(async()=>{
+      try{
+        const data=await api("/api/v1/geocoding/autocomplete?q="+encodeURIComponent(centerQuery.trim()),"GET",await user.getIdToken());
+        if(active){setCenterSuggestions(data.items||[]);setCenterSearchState(data.notice||(data.items?.length?"Selecciona una ubicación.":"Sin coincidencias."));}
+      }catch(e){if(active){setCenterSuggestions([]);setCenterSearchState("Error: "+e.message);}}
+      finally{if(active)setCenterSearching(false);}
+    },500);
+    return ()=>{active=false;clearTimeout(timer);};
+  },[user,centerQuery,centerChoice]);
+  function selectCenter(c){
+    if(!inside(c.latitude,c.longitude)){setError("Centro de distribución fuera del área del piloto");return;}
+    setCenterChoice({label:c.label,latitude:c.latitude,longitude:c.longitude,precision:c.precision});
+    setCenterQuery(c.label);setDepot({latitude:String(c.latitude),longitude:String(c.longitude)});
+    setCenterConfirmed(c.precision==="precise");setCenterSuggestions([]);setCenterSearchState("");
+    setPreview(null);setSavedRoute(null);pendingSaveKey.current=null;
+    setStatus(c.precision==="precise"?"Centro de distribución seleccionado.":"Confirma la ubicación aproximada antes de optimizar.");
+  }
   function selectAddress(s){
     setForm({address_label:s.label,latitude:s.latitude,longitude:s.longitude,precision:s.precision});
     setSuggestions([]);setSearchState("");setConfirmed(s.precision==="precise");setPreview(null);pendingSaveKey.current=null;
@@ -212,9 +240,9 @@ function App(){
   const optimize=()=>run(async()=>{
     const picked=orders.filter(o=>o.checked);
     if(!picked.length||picked.length>10)throw new Error("Selecciona entre 1 y 10 pedidos");
-    if(!inside(Number(depot.latitude),Number(depot.longitude)))throw new Error("Depósito fuera de Lima piloto");
+    if(!distributionCenterReady(centerChoice,centerConfirmed,centerName,inside))throw new Error("Selecciona y confirma el centro de distribución antes de optimizar");
     const p=await api("/api/v1/optimization/preview","POST",await token(),{
-      depot:{id:"depot",latitude:Number(depot.latitude),longitude:Number(depot.longitude)},
+      depot:{id:"depot",...distributionCenterPayload(centerChoice)},
       stops:picked.map(o=>({id:o.id,latitude:o.geo.latitude,longitude:o.geo.longitude}))
     });
     setPreview(p);setSavedRoute(null);pendingSaveKey.current=crypto.randomUUID();setStatus("Secuencia optimizada con matriz vial. Resultado estimado, no observado.");
@@ -268,9 +296,9 @@ function App(){
     if(!preview || !pendingSaveKey.current) throw new Error("Primero optimiza los pedidos");
     const picked=orders.filter(o=>o.checked);
     if(!picked.length || picked.length>10) throw new Error("Selecciona de 1 a 10 pedidos");
-    if(!inside(Number(depot.latitude),Number(depot.longitude))) throw new Error("Depósito fuera de Lima piloto");
+    if(!distributionCenterReady(centerChoice,centerConfirmed,centerName,inside)) throw new Error("Selecciona y confirma el centro de distribución antes de guardar");
     const saved=await api("/api/v1/optimized-routes","POST",await token(),{
-      depot:{latitude:Number(depot.latitude),longitude:Number(depot.longitude)},
+      depot:distributionCenterPayload(centerChoice),
       order_ids:picked.map(o=>o.id),
       idempotency_key:pendingSaveKey.current,
     });
@@ -327,10 +355,30 @@ function App(){
           <div className="orders">{visibleOrders.length?visibleOrders.map(o=><label className="order" key={o.id}><input type="checkbox" checked={o.checked} disabled={busy||o.status!=="PENDING"} onChange={e=>{setOrders(old=>old.map(x=>x.id===o.id?{...x,checked:e.target.checked}:x));setPreview(null);pendingSaveKey.current=null}}/><span><strong>{o.address_label}</strong><small>{o.status} · {o.id.slice(0,8)}</small></span></label>): <p className="empty">{orders.length?"No hay pedidos con este filtro.":"No hay pedidos cargados. Pulsa Actualizar."}</p>}</div>
         </section>
         <section className="panel">
-          <div className="panelhead"><h2>02 · Optimizar ruta</h2><span className="count">1 vehículo · máx. 10 paradas</span></div>
-          <div className="duo"><label>Depósito · latitud<input type="number" step="any" value={depot.latitude} onChange={e=>{setDepot({...depot,latitude:e.target.value});setPreview(null);pendingSaveKey.current=null}}/></label><label>Longitud<input type="number" step="any" value={depot.longitude} onChange={e=>{setDepot({...depot,longitude:e.target.value});setPreview(null);pendingSaveKey.current=null}}/></label></div>
-          <button className="accent" disabled={!user||busy||selected.length<1||selected.length>10} onClick={optimize}>{busy?"Procesando…":"Optimizar con OR-Tools"}</button>
-          {preview&&<button disabled={!user||busy} onClick={saveOptimized}>Guardar ruta optimizada</button>}
+          <div className="panelhead"><h2>02 · Centro de distribución</h2><span className="count">ORIGEN Y RETORNO · 1 VEHÍCULO</span></div>
+          <div className="distribution-form">
+            <label>Nombre del centro<input type="text" aria-label="Nombre del centro de distribución" maxLength={80} value={centerName} onChange={e=>setCenterName(e.target.value)} placeholder="Centro de distribución"/></label>
+            <label htmlFor="distribution-search">Buscar dirección del centro</label>
+            <input id="distribution-search" type="search" autoComplete="off" minLength={3} maxLength={120}
+              value={centerQuery} onChange={e=>{setCenterQuery(e.target.value);setCenterChoice(null);setCenterConfirmed(false);setCenterSuggestions([]);setCenterSearchState("");setPreview(null);setSavedRoute(null);pendingSaveKey.current=null;}}
+              placeholder="Ej. Av. Universitaria, Lima" role="combobox" aria-autocomplete="list" aria-expanded={centerSuggestions.length>0} aria-controls="distribution-suggestions"/>
+            {centerSearching&&<span className="lookup-status">Buscando…</span>}
+            {centerSuggestions.length>0&&<div className="suggestions" id="distribution-suggestions" role="listbox" aria-label="Ubicaciones sugeridas del centro">
+              {centerSuggestions.map(c=><button type="button" role="option" aria-selected="false" key={c.id} className="suggestion" onClick={()=>selectCenter(c)}>
+                <span>📍 {c.label}</span><small>{c.precision==="precise"?"Ubicación precisa":"Ubicación aproximada · requiere confirmación"}</small></button>)}
+            </div>}
+            {!centerChoice&&centerSearchState&&!centerSearching&&<p className="lookup-status" role="status">{centerSearchState}</p>}
+            {centerChoice&&<div className={centerChoice.precision==="approximate"?"location-warning":"location-ok"} role="status">
+              <strong>{centerChoice.precision==="legacy"?"Ubicación inicial no verificada":centerChoice.precision==="precise"?"Centro geolocalizado":"Ubicación aproximada"}</strong>
+              <span>{centerChoice.label}</span>
+              <span>{Number(depot.latitude).toFixed(5)}, {Number(depot.longitude).toFixed(5)}</span>
+              {centerChoice.precision==="approximate"&&<label className="location-confirm"><input type="checkbox" checked={centerConfirmed} onChange={e=>setCenterConfirmed(e.target.checked)}/>Confirmo este punto como origen de ruta</label>}
+            </div>}
+            <p className="fineprint">El origen seleccionado se usará para nuevas rutas; las rutas ya guardadas conservan sus coordenadas originales.</p>
+          </div>
+          <div className="panelhead"><h3>Optimizar paradas</h3><span className="count">Máx. 10 paradas</span></div>
+          <button className="accent" disabled={!user||busy||selected.length<1||selected.length>10||!distributionCenterReady(centerChoice,centerConfirmed,centerName,inside)} onClick={optimize}>{busy?"Procesando…":"Optimizar con OR-Tools"}</button>
+          {preview&&<button disabled={!user||busy||!distributionCenterReady(centerChoice,centerConfirmed,centerName,inside)} onClick={saveOptimized}>Guardar ruta optimizada</button>}
           <p className="fineprint">Al guardar, el servidor vuelve a calcular y valida los pedidos; las métricas guardadas pueden diferir de la previsualización.</p>
           <p className="fineprint">Matrices obtenidas desde openrouteservice en el backend; requieren una clave configurada de forma segura en GCP.</p>
         </section>
@@ -349,13 +397,13 @@ function App(){
         </section>
       </aside>
       <article>
-        <section className="panel mapSection"><div className="panelhead"><div><h2>Mapa de operaciones</h2><p>OpenStreetMap · puntos seleccionados · recorridos</p></div><span className="count">Lima, Perú</span></div><MapPanel orders={orders} depot={depot} preview={preview} savedRoute={savedRoute} chosen={form.latitude===null?null:{...form,label:form.address_label}}/></section>
+        <section className="panel mapSection"><div className="panelhead"><div><h2>Mapa de operaciones</h2><p>OpenStreetMap · puntos seleccionados · recorridos</p></div><span className="count">Lima, Perú</span></div><MapPanel orders={orders} depot={depot} centerLabel={centerName.trim()||"Centro de distribución"} preview={preview} savedRoute={savedRoute} chosen={form.latitude===null?null:{...form,label:form.address_label}}/></section>
         <section className="panel results"><div className="panelhead"><h2>03 · Comparación</h2><span className="count">{preview?"ESTIMADO":"PENDIENTE DE CÁLCULO"}</span></div>
           {preview?<><div className="metrics">
             <div className="metric"><small>Orden original</small><strong>{mins(preview.baseline_seconds)}</strong><span>{km(preview.baseline_meters)}</span></div>
             <div className="metric chosen"><small>OR-Tools</small><strong>{mins(preview.optimized_seconds)}</strong><span>{km(preview.optimized_meters)}</span></div>
             <div className="metric"><small>Mejora estimada</small><strong>{preview.improvement_pct.toFixed(2)}%</strong><span>Sobre la misma matriz</span></div>
-          </div><div className="sequence"><b>Secuencia calculada:</b> Depósito → {preview.ordered_order_ids.map(id=>orders.find(o=>o.id===id)?.address_label||id).join(" → ")} → Depósito</div><p className="fineprint">Fuente: {preview.matrix_provider} · Huella matriz: {preview.matrix_fingerprint.slice(0,12)}… · {preview.warnings.join(". ")}. No hay ahorro real observado.</p></>:<div className="empty">Selecciona pedidos y solicita una optimización para comparar recorridos. No se genera ninguna cifra sin datos de la matriz vial.</div>}
+          </div><div className="sequence"><b>Secuencia calculada:</b> Centro de distribución → {preview.ordered_order_ids.map(id=>orders.find(o=>o.id===id)?.address_label||id).join(" → ")} → Centro de distribución</div><p className="fineprint">Fuente: {preview.matrix_provider} · Huella matriz: {preview.matrix_fingerprint.slice(0,12)}… · {preview.warnings.join(". ")}. No hay ahorro real observado.</p></>:<div className="empty">Selecciona pedidos y solicita una optimización para comparar recorridos. No se genera ninguna cifra sin datos de la matriz vial.</div>}
         </section>
         {savedRoute&&<section className="panel results">
           <div className="panelhead"><h2>05 · Ruta persistida</h2><div><span className="count">{savedRoute.status}</span> <button className="outline" disabled={!user||busy} onClick={()=>run(()=>showSavedRoute(savedRoute.id))}>Actualizar estado</button></div></div>
@@ -365,7 +413,7 @@ function App(){
             <div className="metric chosen"><small>Ruta guardada</small><strong>{mins(savedRoute.optimized_seconds)}</strong><span>{km(savedRoute.optimized_meters)}</span></div>
             <div className="metric"><small>Mejora estimada</small><strong>{savedRoute.improvement_pct.toFixed(2)}%</strong><span>openrouteservice</span></div>
           </div>
-          <div className="sequence"><b>Secuencia persistida:</b> Depósito → {(savedRoute.stops?.length?savedRoute.stops.map(s=>s.sequence+". "+s.address_label):savedRoute.ordered_order_ids).join(" → ")} → Depósito</div>
+          <div className="sequence"><b>Secuencia persistida:</b> Centro de distribución → {(savedRoute.stops?.length?savedRoute.stops.map(s=>s.sequence+". "+s.address_label):savedRoute.ordered_order_ids).join(" → ")} → Depósito</div>
           <p className="fineprint">Mapa: {savedRoute.geometry_origin==="openrouteservice"?"trazado vial estimado de openrouteservice":"conectores esquemáticos entre paradas; no representan la vialidad"}.</p>
           {savedRoute.detail_warnings?.length>0&&<p className="fineprint">{savedRoute.detail_warnings.join(". ")}</p>}
           <p className="fineprint">Origen: {savedRoute.data_origin}. {savedRoute.driver_id?"Conductor asignado: "+savedRoute.driver_id+" · "+(savedRoute.status==="ACTIVE"?"recorrido iniciado.":savedRoute.status==="COMPLETED"?"recorrido finalizado.":"pendiente de activación."):"Esta ruta aún no está asignada a un conductor."}</p>

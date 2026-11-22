@@ -9,6 +9,13 @@ Ver [`docs/US004_EXECUTIVE_COMMAND_CENTER_2026-11-22.md`](../../docs/US004_EXECU
 ---
 # SmartRoute AI — Operador web (React + Leaflet/OpenStreetMap)
 
+## Centro de distribución configurable — incremento US-016
+
+El operador presenta **Centro de distribución** en lugar de **Depósito**. Permite dar nombre al origen, buscar la dirección con el mismo servicio de autocompletado que los pedidos, seleccionar una sugerencia, revisar sus coordenadas y confirmar manualmente las ubicaciones aproximadas. La selección se utiliza en las nuevas previsualizaciones y rutas guardadas. La ubicación preconfigurada se conserva por compatibilidad y aparece como no verificada. Los centros existentes en rutas históricas no se modifican.
+
+El nombre del centro es configuración **de la sesión web**, no un catálogo maestro persistente; se guarda solamente el `depot` de coordenadas en cada ruta. Ver [especificación y aceptación US-016](../../docs/US016_DISTRIBUTION_CENTER_SEARCH_2026-11-22.md). Debe probarse en un despliegue QA sin tráfico principal antes de darlo por aceptado.
+
+
 **Estado:** código en rama, no desplegado todavía. React muestra datos persistidos en Firestore mediante el gateway; la previsualización usa una matriz vial real con OR-Tools, pero **no guarda ni publica** una ruta.
 
 ## Configuración
