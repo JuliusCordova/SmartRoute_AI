@@ -150,3 +150,23 @@ def test_us017_distribution_centers_preflight_and_auth_before_iam():
             headers={"Origin":"https://intruder.example", "Access-Control-Request-Method":"POST"})
         assert rejected.status_code == 403
         mint.assert_not_called()
+
+
+def test_us008_gps_write_and_read_allowlist_and_cors():
+    from app.main import permitted_endpoint
+    route="aec305db-6e2f-5923-8b9f-87fcd9b37755"
+    assert permitted_endpoint("POST","/api/v1/driver/me/location")
+    assert permitted_endpoint("GET","/api/v1/routes/"+route+"/location")
+    assert not permitted_endpoint("GET","/api/v1/driver/me/location")
+    assert not permitted_endpoint("POST","/api/v1/routes/"+route+"/location")
+    assert not permitted_endpoint("GET","/api/v1/routes/random/location")
+    with patch.dict(os.environ, ENV), patch("app.main.private_id_token") as mint:
+        assert client.post("/api/v1/driver/me/location",json={}).status_code==401
+        assert client.get("/api/v1/routes/"+route+"/location").status_code==401
+        ok=client.options("/api/v1/driver/me/location",headers={
+            "Origin":"https://example.org","Access-Control-Request-Method":"POST"})
+        assert ok.status_code==204
+        bad=client.options("/api/v1/driver/me/location",headers={
+            "Origin":"https://attacker.example","Access-Control-Request-Method":"POST"})
+        assert bad.status_code==403
+        mint.assert_not_called()
