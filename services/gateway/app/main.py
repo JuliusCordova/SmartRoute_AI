@@ -43,6 +43,7 @@ def permitted_endpoint(method: str, path: str) -> bool:
             or (method == "GET" and OPTIMIZED_GET_PATH.fullmatch(path) is not None)
             or (method == "POST" and ASSIGN_DRIVER_PATH.fullmatch(path) is not None)
             or (method == "POST" and DRIVER_STOP_PATH.fullmatch(path) is not None)
+            or (method == "GET" and GPS_READ_PATH.fullmatch(path) is not None)
             or (method in {"GET", "PUT", "DELETE"} and CENTER_ID_PATH.fullmatch(path) is not None))
 ORDER_PATH = re.compile(r"^/api/v1/orders$")
 ROUTE_PATH = re.compile(r"^/api/v1/routes$")
