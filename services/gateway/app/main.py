@@ -42,16 +42,20 @@ def permitted_endpoint(method: str, path: str) -> bool:
             or (method == "POST" and ASSIGN_PATH.fullmatch(path) is not None)
             or (method == "GET" and OPTIMIZED_GET_PATH.fullmatch(path) is not None)
             or (method == "POST" and ASSIGN_DRIVER_PATH.fullmatch(path) is not None)
-            or (method == "POST" and DRIVER_STOP_PATH.fullmatch(path) is not None))
+            or (method == "POST" and DRIVER_STOP_PATH.fullmatch(path) is not None)
+            or (method in {"GET", "PUT", "DELETE"} and CENTER_ID_PATH.fullmatch(path) is not None))
 ORDER_PATH = re.compile(r"^/api/v1/orders$")
 ROUTE_PATH = re.compile(r"^/api/v1/routes$")
 ASSIGN_PATH = re.compile(r"^/api/v1/routes/[0-9a-fA-F-]{36}/orders$")
 OPTIMIZED_GET_PATH = re.compile(r"^/api/v1/optimized-routes/[0-9a-fA-F-]{36}$")
 ASSIGN_DRIVER_PATH = re.compile(r"^/api/v1/optimized-routes/[0-9a-fA-F-]{36}/assign-driver$")
 DRIVER_STOP_PATH = re.compile(r"^/api/v1/driver/me/route/stops/[^/]{1,128}/(?:deliver|fail)$")
+CENTER_ID_PATH = re.compile(r"^/api/v1/distribution-centers/[0-9a-fA-F-]{36}$")
 MAX_BODY = 16_384
 ALLOWED = {
     ("GET", "/api/v1/orders"),
+    ("POST", "/api/v1/distribution-centers"),
+    ("GET", "/api/v1/distribution-centers"),
     ("GET", "/api/v1/driver/me/route"),
     ("POST", "/api/v1/driver/me/route/start"),
     ("POST", "/api/v1/driver/me/route/complete"),
