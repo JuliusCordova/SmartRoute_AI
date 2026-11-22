@@ -386,3 +386,105 @@ smartroute-ai/
 - Gemini generateContent: https://ai.google.dev/api/generate-content
 
 **Nota de alcance:** La v1.0 fija contratos funcionales conceptuales y esquema lógico. El fichero OpenAPI 3.x ejecutable, migraciones SQL completas, arquitectura de despliegue y cifras del Business Case serán siguientes artefactos derivados; no están falsamente declarados como implementados.
+
+---
+
+# ADENDA SDD v2.1 — Baseline de implementación validada 22/11/2026
+
+**Control de cambios:** se conserva íntegra la propuesta v1 de 23/10/2026 como historia académica. Esta adenda es la **fuente vigente para describir el software demostrado**; no convierte automáticamente las propuestas no construidas en requisitos aceptados. Ver [SPEC v2.1](../specs/SPEC.md), [trazabilidad actualizada](SDD_TRACEABILITY.md) y [acta E2E](evidence/E2E_OPERADOR_ANDROID_QA_2026-11-22.md).
+
+## A. Decisiones de diseño implementadas
+
+| Dimensión | Propuesta v1 (histórica) | Implementación QA verificada |
+| --- | --- | --- |
+| Móvil | Flutter | **Android nativo Kotlin + Jetpack Compose**, Firebase Google Sign-In; Android Studio/emulador |
+| Panel | React | **React** OPERATOR; pedidos, optimización, rutas guardadas y asignación de conductor |
+| Acceso | FastAPI monolítico público / auth por desarrollar | **Gateway FastAPI público con Firebase**, token IAM de la cuenta de servicio para invocar el Backend **privado** |
+| Backend | FastAPI + PostgreSQL | **FastAPI + Firestore Standard** en base nombrada `smartroute`; transacciones y validación servidor |
+| Mapas/matriz | Google Maps Routes API | **OpenStreetMap** en UI + **openrouteservice** para matriz vial estimada; OR-Tools optimiza la secuencia |
+| IA/LLM | Gemini consultivo | Diseño pendiente de validación funcional en E2E; no afecta los flujos operativos probados |
+| Contexto | Lima ficticia | Un depósito, 6 pedidos sintéticos, un conductor QA y una ruta correlacionada |
+
+### Diagrama de componentes desplegados (QA)
+
+```mermaid
+flowchart TD
+  O[OPERADOR React Cloud Run] -->|Firebase ID token HTTPS| G[Gateway FastAPI Cloud Run QA v3]
+  A[DRIVER Android Kotlin Compose] -->|Firebase ID token HTTPS| G
+  G -->|IAM ID token + Firebase Authorization| B[API privada FastAPI Cloud Run QA v2]
+  B --> F[(Firestore smartroute)]
+  B --> ORS[openrouteservice matriz vial estimada]
+  B --> OT[OR-Tools secuencia óptima encontrada]
+  G -. validación de URL permitida .-> B
+  SM[Secret Manager] -. claves de ORS y geocoding .-> B
+  G -. valida Firebase y token IAM .-> B
+```
+
+> La línea discontinua Gateway→Firestore representa defensa conceptual de seguridad y **no** una conexión directa: el Gateway no realiza operaciones de datos sobre Firestore; el Backend las realiza. Los cálculos de OR-Tools no certifican óptimo global. Gemini/GPS no se incluyen como servicio runtime probado.
+
+## B. Contratos HTTP realmente implementados
+
+Todos los endpoints siguientes están debajo de `/api/v1`, requieren token Firebase válido y control de rol en servidor. El Gateway no entrega el token IAM al cliente.
+
+| Actor | Método | Endpoint | Función |
+| --- | --- | --- | --- |
+| OPERATOR | POST | `/orders` | Crear pedido sintético georreferenciado |
+| OPERATOR | GET | `/orders` | Listar/paginar pedidos |
+| OPERATOR | POST | `/optimization/preview` | Previsualizar secuencia estimada ORS + OR-Tools, sin mutación |
+| OPERATOR | POST | `/optimized-routes` | Persistir ruta optimizada con recálculo/validación servidor |
+| OPERATOR | GET | `/optimized-routes` | Listar rutas guardadas |
+| OPERATOR | GET | `/optimized-routes/{route_id}` | Leer detalle y paradas |
+| OPERATOR | GET | `/drivers?available=true` | Consultar conductores disponibles |
+| OPERATOR | POST | `/optimized-routes/{route_id}/assign-driver` | Asignación transaccional con versión e idempotencia |
+| DRIVER | GET | `/driver/me/route` | Consultar únicamente ruta propia; tras cierre recuperar último recorrido |
+| DRIVER | POST | `/driver/me/route/start` | Iniciar ruta PLANNED→ACTIVE con versión/idempotencia |
+| DRIVER | POST | `/driver/me/route/stops/{order_id}/deliver` | Registrar entrega exitosa |
+| DRIVER | POST | `/driver/me/route/stops/{order_id}/fail` | Registrar entrega fallida con motivo obligatorio |
+| DRIVER | POST | `/driver/me/route/complete` | Finalizar ruta si no quedan paradas pendientes |
+
+No equiparar rutas propuestas de la tabla del apartado 17 de v1 (como `PATCH /orders/{id}/status` o `POST /locations`) con endpoints implementados sin verificar su existencia.
+
+## C. Reglas operativas y persistencia
+
+- **RBAC y propiedad:** `OPERATOR` modifica planificación; `DRIVER` sólo visualiza/ejecuta su ruta. Autenticación Firebase verificada en Gateway y Backend. Invocación entre servicios mediante cuenta Gateway con `roles/run.invoker`.
+- **Persistencia:** Firestore `smartroute`, colecciones `orders`, `routes`, `users`, `drivers`, `driver_assignments` y `driver_last_routes` para lectura del último recorrido finalizado. No acceder a las bases `(default)` ni `gestioncitas`.
+- **Estados:** ruta `PLANNED → ACTIVE → COMPLETED` en escenario validado. Pedidos creados `PENDING`, asignados/transportados y resueltos `DELIVERED` o `FAILED` (motivo). Cierre exige cero pendientes.
+- **Concurrencia:** el cliente envía versión esperada e idempotencia; el Backend revalida las transiciones, propiedad y reserva del conductor; no se aceptan mutaciones desde UI sólo por visibilidad del botón.
+- **Medidas:** guardar tiempos/distancias `estimated` y diferenciar de `observed`/capturado; no transformar métricas de matriz en tiempo real de conducción. Progreso 6/6 cuenta entregadas **más fallidas**.
+- **QA restringida:** revisión Backend `00015-gih` protegida con `SMARTROUTE_QA_WRITE_GUARD=true`, UID y ruta fijados; Gateway `00016-pil` con allowlist explícita. Ambos etiquetados sin tráfico principal. `AppContainer.kt` local DEBUG QA con `ENABLE_QA_WRITE_TEST=true` **no está en main**; main mantiene `false`.
+
+## D. Historial y colisión de identificadores US (no renombrar en silencio)
+
+La baseline académica v1 y el backlog posterior de implementación **no comparten el mismo significado** para los últimos IDs. Al citar evidencia técnica, usar prefijo **US-IMP** (backlog de implementación) y conservar **US-V1** para el documento histórico.
+
+| Código | En la baseline v1 (US-V1) | En implementación (US-IMP) |
+| --- | --- | --- |
+| US-011 | KPI/dashboard | Asignación de conductor a ruta optimizada |
+| US-012 | Gemini consultivo | Inicio de recorrido por DRIVER |
+| US-013 | Registrar incidencia | Registrar resultado de parada (DELIVERED/FAILED) |
+| US-014 | Sincronizar eventos tras reconectar | Completar recorrido, liberar reserva y conservar última ruta |
+
+Esta equivalencia no prueba que Gemini, funcionamiento offline, GPS ni KPI de puntualidad v1 estén completados. Debe actualizarse la matriz de trazabilidad para conservar relación necesidad→capacidad→prueba.
+
+## E. Evidencia de aceptación de US-IMP-011 a US-IMP-014
+
+| Criterio QA | Resultado observado | Evidencia |
+| --- | --- | --- |
+| Operador asigna una ruta PLANNED a QA | PASS en panel web | Ruta `aec305db-6e2f-5923-8b9f-87fcd9b37755`; UID `zMuwbYHLfST2QNdNkfosoCbUZ003` |
+| DRIVER ve exclusivamente ruta asignada | PASS en Android | 6 paradas, 16,8 km, 31 min estimados |
+| Inicio con confirmación | PASS en Android | Botón, diálogo y cambio a recorrido con acciones de paradas |
+| Entrega exitosa y bloqueo de repetición | PASS en Android | Primera parada DELIVERED, botones deshabilitados después |
+| Incidencia con motivo | PASS en UI para estado FAILED; motivo no auditado independientemente | Segunda parada FAILED, resumen 2/6 |
+| Cuatro paradas restantes resueltas | PASS en Android | Entregas finales 5/6; 1 FAILED |
+| Finalización | PASS Android y lectura operador | Ruta COMPLETED, 6/6 resueltas, versión 10 del panel |
+| Aislamiento QA | PASS de despliegue `--no-traffic`, revisión general final pendiente | Backend `00015-gih`, Gateway `00016-pil` |
+
+**Identificadores de aceptación (adenda):** `AC-IMP-011` asignación exclusiva; `AC-IMP-012` inicio de ruta con confirmación; `AC-IMP-013` transición de entrega con idempotencia/errores; `AC-IMP-014` cierre sin pendientes. **TC-E2E-QA-20261122-01** evidencia positiva de integración de una ruta. Pruebas negativas/competencia/seguridad y respuesta offline quedan abiertas.
+
+## F. Límites y criterio de salida a producción
+
+- No se ha realizado piloto de campo con tiempos observados, km GPS ni puntualidad; **OE1 -20 % no demostrado**. Comparación mostrada 20,96→16,8 km; 36→31 min redondeados; mejora 15,84 % corresponde al cálculo mostrado, no a ahorro operacional medido.
+- No se ha ejecutado evaluación formal de usuarios, usabilidad, cumplimiento ético, seguridad ofensiva, costo económico completo o entrega académica final.
+- Antes de promoción: eliminar toggles/UID/ruta hard-coded de distribución, tests CI negativos para rutas/conductores ajenos, evidencia IAM/rollback/release, matriz académica recalculada desde requisitos P0 congelados, archivar capturas originales y realizar piloto comparable.
+
+**Resultado:** MVP académico apto para **demostración técnica QA** de planificación→cierre, **no** listo para declarar uso productivo ni cumplimiento de objetivos de impacto real.

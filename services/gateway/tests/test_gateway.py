@@ -110,3 +110,16 @@ def test_driver_own_route_cors_preflight():
             "Origin": "https://attacker.example", "Access-Control-Request-Method": "GET",
         })
         assert rejected.status_code == 403
+
+
+def test_tagged_qa_v2_backend_allowlist_is_explicit_and_rejects_unknown_urls():
+    from app.main import APPROVED_API_URLS, backend_url
+
+    approved = "https://qa-route-v2---smartroute-api-staging-mkqutd4koq-uc.a.run.app"
+    assert approved in APPROVED_API_URLS
+    with patch.dict(os.environ, {"SMARTROUTE_BACKEND_URL": approved}):
+        assert backend_url() == approved
+    with patch.dict(os.environ, {"SMARTROUTE_BACKEND_URL": "https://unknown.example"}):
+        import pytest
+        with pytest.raises(RuntimeError, match="Unapproved private SmartRoute backend URL"):
+            backend_url()
