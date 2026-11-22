@@ -65,3 +65,25 @@ Se resolvió el fallo 503 incorporando la URL del Backend QA v2 a la **allowlist
 - [ ] Ejecutar piloto con tiempos reales y evaluación de puntualidad; 15,84 % es **estimación**, inferior al objetivo hipotético 20 % y no mide ahorro operativo.
 
 **Regla:** NO iniciar nuevas mutaciones contra esta ruta `COMPLETED`; NO incorporar el `ENABLE_QA_WRITE_TEST=true` local a una build de distribución, y NO acceder a Firestore `(default)` ni `gestioncitas`.
+
+
+## Índice de capturas originales disponibles en el paquete de entrega
+
+Las siguientes capturas fueron entregadas durante la conversación y recopiladas en un ZIP local descargable separado; **no están incorporadas todavía como binarios a GitHub**. Para adjuntarlas al repositorio, revisar privacidad, colocar en `docs/evidence/assets/2026-11-22/` y mantener estas denominaciones, junto con el manifiesto de SHA-256.
+
+| Archivo en paquete | Hito que respalda |
+| --- | --- |
+| `E01_Operador_ruta_asignada_PLANNED.png` | Operador: ruta optimizada asignada QA, PLANNED |
+| `E02_Android_ruta_6_paradas_PLANNED.png` | DRIVER: consulta de ruta propia |
+| `E03_Android_detalle_6_paradas.png` | DRIVER: detalle, mapa y paradas |
+| `E04_Android_boton_iniciar.png` | US-IMP-012 botón iniciar disponible |
+| `E05_Android_confirmacion_inicio.png` | US-IMP-012 confirmación explícita |
+| `E06_Android_parada_en_camino.png` | US-IMP-012 ruta activa |
+| `E07_Android_confirmar_entrega.png` | US-IMP-013 solicitud de entrega |
+| `E08_Android_parada_entregada.png` | US-IMP-013 entrega exitosa y controles cerrados |
+| `E09_Android_entregada_fallida.png` | US-IMP-013 resultado 1 DELIVERED y 1 FAILED |
+| `E10_Android_5_1_0_botoncierre.png` | US-IMP-014 cero pendientes, botón cierre |
+| `E11_Android_COMPLETED.png` | US-IMP-014 estado final Android |
+| `E12_Operador_COMPLETED.png` | Lectura posterior: misma ruta COMPLETED v10 en operador |
+
+El ZIP contiene `MANIFIESTO_EVIDENCIAS.csv` (nombre original y checksum) y `LEEME.txt`. No se alteraron las capturas originales en el paquete. **Antes de subirlas a un repositorio público, revisar nombres y detalles de cuenta que aparecen en pantalla.**
