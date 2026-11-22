@@ -117,6 +117,29 @@ class ApiRouteRepository(
             }
         }
 
+    override suspend fun submitLocation(routeId: String, latitude: Double, longitude: Double,
+                                        accuracyMeters: Float, capturedAtIso: String) {
+        if (!canMutateRoute(routeId)) throw RouteError.Forbidden()
+        val route = refreshRoute(routeId) ?: throw RouteError.Conflict()
+        if (route.status != pe.edu.upn.smartroute.driver.domain.model.RouteStatus.ACTIVE)
+            throw RouteError.Conflict()
+        val body = JSONObject().put("route_id", routeId)
+            .put("latitude", latitude).put("longitude", longitude)
+            .put("accuracy_m", accuracyMeters.toDouble()).put("captured_at", capturedAtIso)
+            .put("consent", true).toString()
+        when (val response = postAuthorized("/api/v1/driver/me/location", body)) {
+            is HttpResponse -> when (response.code) {
+                200 -> Unit
+                401 -> throw RouteError.Unauthorized()
+                403 -> throw RouteError.Forbidden()
+                409 -> throw RouteError.Conflict()
+                422 -> throw RouteError.InvalidResponse("Ubicación inválida o caducada")
+                in 500..599 -> throw RouteError.Unavailable(response.code)
+                else -> throw RouteError.InvalidResponse("GPS HTTP ${response.code}")
+            }
+        }
+    }
+
     /**
      * US-013: contrato propuesto; el backend debe confirmar el estado exacto de la parada.
      * Respuesta 200 mínima: {id, status:"ACTIVE", version, order_id, order_status}.
