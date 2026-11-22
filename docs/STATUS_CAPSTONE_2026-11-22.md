@@ -31,3 +31,7 @@
 ## Criterio de finalización
 
 **Cerrado:** el flujo funcional de la ruta QA `aec305db-6e2f-5923-8b9f-87fcd9b37755` en Android y panel web. **Abierto:** endurecimiento de seguridad, pruebas automatizadas de ese escenario, documentación con capturas originales, medición de resultados reales y aceptación académica formal. No asignar un porcentaje global inventado a la rúbrica.
+
+## Matriz P0 con aceptación y capturas (22/11/2026)
+
+[Ver matriz de aceptación de 12 historias P0](evidence/MATRIZ_ACEPTACION_P0_2026-11-22.md): **8 aceptadas QA / 2 parciales / 2 pendientes**, con evidencia E01–E12, criterio, excepción y contrato. El anexo Word contiene las 12 capturas incrustadas; no se han subido binarios a GitHub. No confundir el 66,7 % QA con el 90 % de la rúbrica.
