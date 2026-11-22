@@ -1,5 +1,5 @@
 # SmartRoute AI — Minimum Sufficient Specification (MSS) v2.0
-**Estado:** baseline de diseño, NO software implementado. **Método:** PA-SDD de [DevPattern](https://github.com/JuliusCordova/DevPattern/tree/main/patterns/progressive-agentic-sdd) en nivel MVP. **Fuente funcional:** Informe Capstone Práctica de Campo I (24-oct-2026) + Charter/SDD v1.0. **Prioridad del informe:** si difieren los objetivos iniciales, prevalecen OE1–OE3 del informe.
+**Estado de esta sección histórica:** baseline de diseño v2.0; estado vigente y validación QA documentados en §11, enmienda del 22/11/2026. **Método:** PA-SDD de [DevPattern](https://github.com/JuliusCordova/DevPattern/tree/main/patterns/progressive-agentic-sdd) en nivel MVP. **Fuente funcional:** Informe Capstone Práctica de Campo I (24-oct-2026) + Charter/SDD v1.0. **Prioridad del informe:** si difieren los objetivos iniciales, prevalecen OE1–OE3 del informe.
 
 ## 1. Business intent / pregunta / hipótesis
 - Problema: secuencia manual de paradas, ausencia de trazabilidad y de línea base observada en empresa **académica ficticia** de Lima Metropolitana. No atribuir a una empresa real.
@@ -68,3 +68,12 @@ Se usa [Firestore Standard](../docs/FIRESTORE_STANDARD_MVP.md), con [colecciones
 ## 10. Secuencia de ejecución revisada — propuesta web-first (14-11-2026)
 
 Se propone implementar **dashboard OPERATOR + mapa OSM + previsualización con matriz vial ORS y OR-Tools** antes de la app Flutter DRIVER. No cambia alcance ni objetivos: reordena la ruta crítica US-003/004/005 → US-009/010 → US-006/007/008. Ver [ADR-13/14](../docs/ADR-13-14-OPEN-MAPS-WEB-FIRST.md) y [código frontend](../apps/operator-web/README.md). Este PR añade POST `/api/v1/optimization/preview` protegido por OPERATOR: depósito y 1–10 paradas dentro del piloto; datos de matriz reales `estimated` con huella, duración/distancia y secuencia best-found. **No persistencia ni publicación de ruta en este incremento**; esas operaciones se mantienen como trabajo pendiente de US-010. Gemini P1 posterior. Controles obligatorios: clave ORS solo en API vía Secret Manager; frontend en Cloud Run requiere Firebase web configuration, dominio autorizado y CORS exacto. No se afirma resultado piloto hasta pruebas observadas.
+
+
+## 11. Enmienda de especificación vigente — 22/11/2026
+
+**Estado real:** el texto anterior es la línea base histórica v2.0, no el estado actual del software. El flujo de operador y conductor está **implementado y validado en QA**, según [acta E2E](../docs/evidence/E2E_OPERADOR_ANDROID_QA_2026-11-22.md). Aplicación implementada: Android **Kotlin/Jetpack Compose**; persistencia **Firestore Standard `smartroute`**; mapas **OSM** y matriz **openrouteservice**, optimizador **OR-Tools**. El Backend permanece privado detrás de un Gateway que valida Firebase y utiliza IAM para la invocación. Gemini consultivo, GPS operativo, offline y métricas observadas siguen fuera del escenario E2E validado.
+
+Para contratos, reglas de estados y control de cambios consultar [Adenda SDD v2.1](../docs/SmartRoute_AI_Charter_SDD_v1.md#adenDA-sdd-v21--baseline-de-implementación-validada-22112026) y [trazabilidad](../docs/SDD_TRACEABILITY.md). Los códigos US-011..014 del plan académico original **colisionan** con los del backlog de implementación: referenciar **US-V1** y **US-IMP** explícitamente, sin asumir que US-IMP-012 (inicio) acredita US-V1-012 (Gemini).
+
+**Gate P0 actual:** ejecución de una ruta íntegra en QA con 6 pedidos, 5 entregas y 1 fallo, ruta COMPLETED v10; PR #60 integró Android seguro a main con write QA deshabilitado. Los toggles de escritura se activaron sólo en un build local DEBUG y la revisión Backend quedó restringida por UID/ruta. Antes de release faltan tests negativos, hardening de toggles, integración del expediente de capturas y evaluación de OE1–OE3 con datos observados. **No se infiere cobertura ≥90 % de la rúbrica desde este único escenario.**
