@@ -73,7 +73,7 @@ def test_centers_crud_create_read_update_deactivate_and_preserve_history():
             changed=api.put("/api/v1/distribution-centers/"+c["id"],json=update)
             assert changed.status_code==200 and changed.json()["version"]==2
             assert api.put("/api/v1/distribution-centers/"+c["id"],json=update).status_code==409
-            assert api.delete("/api/v1/distribution-centers/"+c["id"],json={"expected_version":1}).status_code==409
+            assert api.request("DELETE","/api/v1/distribution-centers/"+c["id"],json={"expected_version":1}).status_code==409
             disabled=api.request("DELETE","/api/v1/distribution-centers/"+c["id"],json={"expected_version":2})
             assert disabled.status_code==200 and disabled.json()["active"] is False
             assert api.get("/api/v1/distribution-centers/"+c["id"]).json()["name"]=="Centro Lima Actualizado"
