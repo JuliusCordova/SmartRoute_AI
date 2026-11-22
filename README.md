@@ -4,6 +4,17 @@
 
 SmartRoute AI es un MVP académico de siete semanas para gestionar pedidos, seguir entregas desde Android y comparar rutas base con rutas optimizadas. **Hipótesis de negocio:** reducir el tiempo promedio de entrega en al menos 20 %, sujeto a validación mediante piloto comparable.
 
+## Estado vigente — 22 de noviembre de 2026 (QA E2E)
+
+**MVP operativo validado en un entorno QA aislado; no es una liberación a producción ni acredita la meta de ahorro del 20 %.** El flujo **Operador web → pedidos sintéticos → OR-Tools + matriz openrouteservice estimada → ruta persistida → asignación DRIVER QA → Android Kotlin/Jetpack Compose → inicio → 5 entregas + 1 incidencia → cierre** se probó con una misma ruta: `aec305db-6e2f-5923-8b9f-87fcd9b37755`. Estado final visible tanto en Android como en el panel del operador: **COMPLETED**, 6/6 paradas resueltas, 5 DELIVERED y 1 FAILED; versión 10 en panel web. La distancia de 16,8 km y duración de 31 min son **estimaciones**, no telemetría real.
+
+- [Acta técnica de prueba integral QA — 22/11/2026](docs/evidence/E2E_OPERADOR_ANDROID_QA_2026-11-22.md): ruta, capturas aportadas en la sesión, endpoints, revisiones Cloud Run y límites de la evidencia.
+- [Estado de Capstone y pendientes priorizados](docs/STATUS_CAPSTONE_2026-11-22.md): por componente, demostraciones, deuda de seguridad y próximos gates.
+- Código **Android nativo** integrado a `main` mediante PR #60 (commit `44f9748`); la habilitación temporal de escrituras QA para una ruta específica se realizó **solo localmente** en `AppContainer.kt`, y **no** está incorporada en `main`.
+- Gateway: commit `5323dee` incorpora la URL de Backend QA v2 a la allowlist. Gateway QA v3 y Backend QA v2 son revisiones **etiquetadas con 0 % de tráfico principal**; las credenciales IAM y la base Firestore `smartroute` se mantienen separadas.
+
+> **Nota de vigencia:** las secciones cronológicas más abajo describen hitos históricos (incluidos Flutter, scaffold y actividades pendientes en ese momento) y no deben utilizarse como estado actual. La decisión vigente de aplicación móvil es **Android Kotlin/Compose**; el panel de mapas usa **OpenStreetMap** y la matriz vial **openrouteservice**, no Google Maps en el flujo verificado.
+
 ## Fuente de verdad de requisitos
 
 - [Project Charter y Especificación SDD v1.0](docs/SmartRoute_AI_Charter_SDD_v1.md): objetivos, alcance, restricciones, arquitectura, épicas, historias de usuario, contratos API, esquema lógico de datos, aceptación y backlog semanal.
