@@ -22,7 +22,8 @@ from .route_preview import PreviewRequest, StopPoint, compute_preview, ORS_DIREC
 
 def _payload_hash(payload: OptimizedRouteCreate) -> str:
     return sha256(json.dumps(
-        {"depot": payload.depot.model_dump(), "distribution_center_id": payload.distribution_center_id, "order_ids": payload.order_ids},
+        dict({"depot": payload.depot.model_dump(), "order_ids": payload.order_ids},
+             **({"distribution_center_id": payload.distribution_center_id} if payload.distribution_center_id else {})),
         sort_keys=True,
     ).encode()).hexdigest()
 
