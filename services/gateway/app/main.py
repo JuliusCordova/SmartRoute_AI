@@ -20,11 +20,14 @@ PROJECT = "proyectopersonal-480420"
 PRIVATE_API_URL = "https://smartroute-api-staging-913797829604.us-central1.run.app"
 # Exact trusted backend URLs only: no env-controlled arbitrary proxy target.
 # The IAM ID token audience stays on the canonical Cloud Run service URL.
+
 APPROVED_API_URLS = frozenset({
     PRIVATE_API_URL,
     "https://us012-version-test---smartroute-api-staging-mkqutd4koq-uc.a.run.app",
     "https://us014-backend-test---smartroute-api-staging-mkqutd4koq-uc.a.run.app",
+    "https://qa-route-v2---smartroute-api-staging-mkqutd4koq-uc.a.run.app",
 })
+
 
 
 def backend_url() -> str:
