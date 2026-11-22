@@ -398,3 +398,42 @@ def deactivate_distribution_center(
         raise HTTPException(409, str(exc)) from None
     except Exception:
         raise HTTPException(503, "Distribution center storage unavailable") from None
+
+
+# US-V1-008: consented GPS on ACTIVE assigned route, operator reads latest fix.
+from .driver_location import GPSFix, GPSReceipt, LastGPS, GPSDenied, GPSMissing
+from .firestore_driver_location import FirestoreDriverLocationRepository
+
+@lru_cache(maxsize=1)
+def get_driver_location_repository() -> FirestoreDriverLocationRepository:
+    return FirestoreDriverLocationRepository()
+
+
+@app.post("/api/v1/driver/me/location", response_model=GPSReceipt, tags=["GPS"])
+def report_driver_location(
+    payload: GPSFix,
+    actor: UserContext = Depends(require_driver),
+    repo: FirestoreDriverLocationRepository = Depends(get_driver_location_repository),
+):
+    try:
+        return repo.record(driver_uid=actor.uid, fix=payload)
+    except GPSDenied as exc:
+        raise HTTPException(403, str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
+    except Exception:
+        raise HTTPException(503, "GPS storage unavailable") from None
+
+
+@app.get("/api/v1/routes/{route_id}/location", response_model=LastGPS, tags=["GPS"])
+def get_last_driver_location(
+    route_id: str,
+    actor: UserContext = Depends(require_operator),
+    repo: FirestoreDriverLocationRepository = Depends(get_driver_location_repository),
+):
+    try:
+        return repo.latest(route_id=route_id)
+    except GPSMissing as exc:
+        raise HTTPException(404, str(exc)) from None
+    except Exception:
+        raise HTTPException(503, "GPS lookup unavailable") from None
