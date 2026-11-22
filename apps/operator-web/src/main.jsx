@@ -62,8 +62,6 @@ function MapPanel({orders,depot,preview,chosen,savedRoute}){
       return;
     }
     const selected=orders.filter(o=>o.checked);
-  const visibleOrders=filterOrders(orders,orderState,orderSearch);
-  const visibleRoutes=filterRoutes(savedRoutes,routeListState);
     const valid=selected.filter(o=>inside(o.geo.latitude,o.geo.longitude));
     const points=[[Number(depot.latitude),Number(depot.longitude)]];
     if(inside(...points[0]))L.circleMarker(points[0],{radius:9,color:"#102739",fillColor:"#f0b43d",fillOpacity:1}).bindPopup("Depósito").addTo(group);
@@ -289,6 +287,8 @@ function App(){
     catch { setStatus("Ruta guardada; vuelve a seleccionarla en Rutas guardadas para ver el mapa."); }
   });
   const selected=orders.filter(o=>o.checked);
+  const visibleOrders=filterOrders(orders,orderState,orderSearch);
+  const visibleRoutes=filterRoutes(savedRoutes,routeListState);
   return <div className="app">
     <header><div className="brand"><span className="brandmark">↝</span><div><b>SmartRoute <em>AI</em></b><small>CENTRO DE OPERACIONES · PILOTO</small></div></div><div className="identity">{user?<><span>{user.email}</span><button className="outline" onClick={()=>run(()=>signOut(auth))}>Salir</button></>:<button onClick={()=>run(()=>signInWithPopup(auth,new GoogleAuthProvider()))} disabled={!configured||busy}>Entrar con Google</button>}</div></header>
     <div className="subhead"><span>UPN Capstone · Lima Metropolitana</span><span className="tag">DATOS DE PEDIDOS SINTÉTICOS · MATRIZ ESTIMADA</span></div>
