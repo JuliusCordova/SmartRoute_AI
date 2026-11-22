@@ -6,6 +6,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./style.css";
 import {ORDER_STATES,ROUTE_STATES,stateLabel,filterOrders,filterRoutes,summarizeOperations,fetchPaged} from "./operations.js";
+import {distributionCenterReady,distributionCenterPayload} from "./distributionCenter.js";
 
 const cfg = window.__SMARTROUTE_CONFIG__ || {};
 const configured = Boolean(cfg.firebase?.apiKey && cfg.firebase?.appId && cfg.gatewayUrl);
@@ -86,7 +87,7 @@ function MapPanel({orders,depot,preview,chosen,savedRoute,centerLabel}){
       L.polyline([...points,points[0]],{color:"#758c9d",weight:2,dashArray:"5 7"}).addTo(group);
     }
     if(points.length>1) map.current.fitBounds(L.latLngBounds(points).pad(.25),{maxZoom:14});
-  },[orders,depot,preview,chosen,savedRoute]);
+  },[orders,depot,preview,chosen,savedRoute,centerLabel]);
   return <div className="mapWrap"><div ref={ref} className="map" /><span className="mapCaption">{savedRoute ? (savedRoute.geometry_origin==="openrouteservice"?"Ruta guardada · recorrido vial estimado":"Ruta guardada · conectores esquemáticos, NO recorrido vial") : preview ? (preview.route_geometry?"Recorrido vial estimado":"Conectores esquemáticos; matriz vial estimada"):"Orden original · conectores esquemáticos"}</span></div>;
 }
 
@@ -239,9 +240,9 @@ function App(){
   const optimize=()=>run(async()=>{
     const picked=orders.filter(o=>o.checked);
     if(!picked.length||picked.length>10)throw new Error("Selecciona entre 1 y 10 pedidos");
-    if(!centerChoice||!centerConfirmed||!inside(Number(depot.latitude),Number(depot.longitude)))throw new Error("Selecciona y confirma el centro de distribución antes de optimizar");
+    if(!distributionCenterReady(centerChoice,centerConfirmed,centerName,inside))throw new Error("Selecciona y confirma el centro de distribución antes de optimizar");
     const p=await api("/api/v1/optimization/preview","POST",await token(),{
-      depot:{id:"depot",latitude:Number(depot.latitude),longitude:Number(depot.longitude)},
+      depot:{id:"depot",...distributionCenterPayload(centerChoice)},
       stops:picked.map(o=>({id:o.id,latitude:o.geo.latitude,longitude:o.geo.longitude}))
     });
     setPreview(p);setSavedRoute(null);pendingSaveKey.current=crypto.randomUUID();setStatus("Secuencia optimizada con matriz vial. Resultado estimado, no observado.");
@@ -295,9 +296,9 @@ function App(){
     if(!preview || !pendingSaveKey.current) throw new Error("Primero optimiza los pedidos");
     const picked=orders.filter(o=>o.checked);
     if(!picked.length || picked.length>10) throw new Error("Selecciona de 1 a 10 pedidos");
-    if(!centerChoice||!centerConfirmed||!inside(Number(depot.latitude),Number(depot.longitude))) throw new Error("Selecciona y confirma el centro de distribución antes de guardar");
+    if(!distributionCenterReady(centerChoice,centerConfirmed,centerName,inside)) throw new Error("Selecciona y confirma el centro de distribución antes de guardar");
     const saved=await api("/api/v1/optimized-routes","POST",await token(),{
-      depot:{latitude:Number(depot.latitude),longitude:Number(depot.longitude)},
+      depot:distributionCenterPayload(centerChoice),
       order_ids:picked.map(o=>o.id),
       idempotency_key:pendingSaveKey.current,
     });
@@ -376,8 +377,8 @@ function App(){
             <p className="fineprint">El origen seleccionado se usará para nuevas rutas; las rutas ya guardadas conservan sus coordenadas originales.</p>
           </div>
           <div className="panelhead"><h3>Optimizar paradas</h3><span className="count">Máx. 10 paradas</span></div>
-          <button className="accent" disabled={!user||busy||selected.length<1||selected.length>10||!centerChoice||!centerConfirmed||!centerName.trim()} onClick={optimize}>{busy?"Procesando…":"Optimizar con OR-Tools"}</button>
-          {preview&&<button disabled={!user||busy||!centerChoice||!centerConfirmed} onClick={saveOptimized}>Guardar ruta optimizada</button>}
+          <button className="accent" disabled={!user||busy||selected.length<1||selected.length>10||!distributionCenterReady(centerChoice,centerConfirmed,centerName,inside)} onClick={optimize}>{busy?"Procesando…":"Optimizar con OR-Tools"}</button>
+          {preview&&<button disabled={!user||busy||!distributionCenterReady(centerChoice,centerConfirmed,centerName,inside)} onClick={saveOptimized}>Guardar ruta optimizada</button>}
           <p className="fineprint">Al guardar, el servidor vuelve a calcular y valida los pedidos; las métricas guardadas pueden diferir de la previsualización.</p>
           <p className="fineprint">Matrices obtenidas desde openrouteservice en el backend; requieren una clave configurada de forma segura en GCP.</p>
         </section>
