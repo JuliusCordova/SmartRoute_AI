@@ -1,3 +1,12 @@
+## US-004 y tablero ejecutivo (implementación de rama)
+
+Se incorpora un **Centro de Control Ejecutivo** con KPIs de pedidos y rutas, efectividad de entregas, mejora estimada ponderada, barras de estados y filtro de rutas. El panel carga las páginas de Firestore a través del Gateway con Firebase; si se alcanza el límite de páginas informa vista parcial. El módulo de pedidos incorpora filtros por estado y búsqueda combinada por dirección e ID, sin modificar datos.
+
+El código y las pruebas puras están en `src/operations.js` y `tests/operations.test.js`; ejecutar `npm test` y `npm run build`. Los indicadores de ruta siguen siendo **estimated** y la puntualidad observada está pendiente. Hasta ejecutar E2E en la revisión web de QA, **US-004 y US-011 permanecen PARCIALES**.
+
+Ver [`docs/US004_EXECUTIVE_COMMAND_CENTER_2026-11-22.md`](../../docs/US004_EXECUTIVE_COMMAND_CENTER_2026-11-22.md). Esta sección actualiza el estado de implementación de la rama; los párrafos históricos siguientes describen incrementos previos.
+
+---
 # SmartRoute AI — Operador web (React + Leaflet/OpenStreetMap)
 
 **Estado:** código en rama, no desplegado todavía. React muestra datos persistidos en Firestore mediante el gateway; la previsualización usa una matriz vial real con OR-Tools, pero **no guarda ni publica** una ruta.
