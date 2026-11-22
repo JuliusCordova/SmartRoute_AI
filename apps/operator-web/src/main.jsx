@@ -147,11 +147,15 @@ function App(){
   const [centerQuery,setCenterQuery]=useState(initialCenter.label),[centerChoice,setCenterChoice]=useState(initialCenter);
   const [centerSuggestions,setCenterSuggestions]=useState([]),[centerSearchState,setCenterSearchState]=useState(""),[centerSearching,setCenterSearching]=useState(false);
   const [centerConfirmed,setCenterConfirmed]=useState(true);
+  const [centers,setCenters]=useState([]),[centerListPartial,setCenterListPartial]=useState(false);
+  const [centerCode,setCenterCode]=useState(""),[editingCenter,setEditingCenter]=useState(null);
+  const [currentCenterId,setCurrentCenterId]=useState(null),[centerMasterQuery,setCenterMasterQuery]=useState("");
+  const [centerMasterNotice,setCenterMasterNotice]=useState("");
   const pendingSaveKey=useRef(null),pendingAssignmentKey=useRef(null);
   const [orderState,setOrderState]=useState("ALL"),[orderSearch,setOrderSearch]=useState("");
   const [routeListState,setRouteListState]=useState("ALL");
   const [coverage,setCoverage]=useState({ordersTruncated:false,routesTruncated:false});
-  useEffect(()=>auth?onAuthStateChanged(auth,u=>{setUser(u);setPreview(null);setOrders([]);setSavedRoutes([]);setSavedRoute(null);setDrivers([]);setSelectedDriver("");pendingSaveKey.current=null;pendingAssignmentKey.current=null;setStatus(u?"Sesión iniciada. Consulta tus pedidos.":"Inicia sesión para consultar pedidos.");},e=>setError(e.code)):undefined,[]);
+  useEffect(()=>auth?onAuthStateChanged(auth,u=>{setUser(u);setPreview(null);setOrders([]);setSavedRoutes([]);setSavedRoute(null);setDrivers([]);setSelectedDriver("");setCenters([]);setEditingCenter(null);setCurrentCenterId(null);pendingSaveKey.current=null;pendingAssignmentKey.current=null;setStatus(u?"Sesión iniciada. Consulta tus pedidos.":"Inicia sesión para consultar pedidos.");},e=>setError(e.code)):undefined,[]);
   useEffect(()=>{
     if(!user||form.latitude!==null||form.address_label.trim().length<3){
       setSuggestions([]);setSearchState("");setSearching(false);return;
@@ -185,11 +189,83 @@ function App(){
   function selectCenter(c){
     if(!inside(c.latitude,c.longitude)){setError("Centro de distribución fuera del área del piloto");return;}
     setCenterChoice({label:c.label,latitude:c.latitude,longitude:c.longitude,precision:c.precision});
+    setCurrentCenterId(null);
     setCenterQuery(c.label);setDepot({latitude:String(c.latitude),longitude:String(c.longitude)});
     setCenterConfirmed(c.precision==="precise");setCenterSuggestions([]);setCenterSearchState("");
     setPreview(null);setSavedRoute(null);pendingSaveKey.current=null;
     setStatus(c.precision==="precise"?"Centro de distribución seleccionado.":"Confirma la ubicación aproximada antes de optimizar.");
   }
+  function chooseSavedCenter(center){
+    if(!center.active)return;
+    setCurrentCenterId(center.id);setEditingCenter(null);
+    setCenterCode(center.code);setCenterName(center.name);setCenterQuery(center.address_label);
+    setCenterChoice({label:center.address_label,latitude:center.geo.latitude,longitude:center.geo.longitude,precision:center.location_precision});
+    setDepot({latitude:String(center.geo.latitude),longitude:String(center.geo.longitude)});
+    setCenterConfirmed(true);setCenterSuggestions([]);setCenterSearchState("");
+    setPreview(null);setSavedRoute(null);pendingSaveKey.current=null;
+    setStatus("Sede "+center.code+" seleccionada como origen de futuras rutas.");
+  }
+  function beginCenterEdit(center){
+    setEditingCenter(center);setCurrentCenterId(null);
+    setCenterCode(center.code);setCenterName(center.name);
+    setCenterQuery(center.address_label);
+    setCenterChoice({label:center.address_label,latitude:center.geo.latitude,longitude:center.geo.longitude,precision:center.location_precision});
+    setDepot({latitude:String(center.geo.latitude),longitude:String(center.geo.longitude)});
+    setCenterConfirmed(true);setCenterSuggestions([]);setCenterSearchState("");
+    setPreview(null);setSavedRoute(null);pendingSaveKey.current=null;
+    setStatus("Editando sede "+center.code+". Guarda los cambios o cancela.");
+  }
+  function resetCenterEditor(){
+    setEditingCenter(null);setCenterCode("");setCurrentCenterId(null);
+    setCenterName("Centro de distribución");setCenterQuery("");setCenterChoice(null);
+    setCenterConfirmed(false);setCenterSuggestions([]);setCenterSearchState("");
+    setPreview(null);setSavedRoute(null);pendingSaveKey.current=null;
+  }
+  async function fetchCenters(tkn){
+    return fetchPaged((limit,cursor)=>api("/api/v1/distribution-centers?limit="+limit+
+      (cursor?"&cursor="+encodeURIComponent(cursor):""),"GET",tkn),{limit:50,maxPages:10});
+  }
+  useEffect(()=>{
+    if(!user)return;
+    let live=true;
+    user.getIdToken().then(fetchCenters).then(result=>{
+      if(live){setCenters(result.items);setCenterListPartial(result.truncated);}
+    }).catch(e=>{if(live)setCenterMasterNotice("No se pudo cargar catálogo: "+e.message);});
+    return ()=>{live=false;};
+  },[user]);
+  const refreshCenters=()=>run(async()=>{
+    const result=await fetchCenters(await token());
+    setCenters(result.items);setCenterListPartial(result.truncated);
+    setCenterMasterNotice(result.items.length+" sedes recuperadas."+(result.truncated?" Lista parcial.":""));
+  });
+  const persistCenter=()=>run(async()=>{
+    if(!distributionCenterReady(centerChoice,centerConfirmed,centerName,inside))
+      throw new Error("Selecciona y confirma una dirección válida para guardar la sede.");
+    if(!/^[A-Za-z0-9][A-Za-z0-9_-]{1,23}$/.test(centerCode.trim()))
+      throw new Error("Código: de 2 a 24 letras, dígitos, guiones o guion bajo.");
+    const payload={
+      code:centerCode.trim().toUpperCase(),name:centerName.trim(),address_label:centerChoice.label,
+      geo:distributionCenterPayload(centerChoice),location_precision:centerChoice.precision==="approximate"?"approximate":"precise",
+      approximate_confirmed:centerConfirmed,
+    };
+    const wasEditing=Boolean(editingCenter);
+    const tkn=await token();
+    const saved=wasEditing
+      ?await api("/api/v1/distribution-centers/"+encodeURIComponent(editingCenter.id),"PUT",tkn,{...payload,expected_version:editingCenter.version})
+      :await api("/api/v1/distribution-centers","POST",tkn,payload);
+    const refreshed=await fetchCenters(tkn);
+    setCenters(refreshed.items);setCenterListPartial(refreshed.truncated);
+    chooseSavedCenter(saved);
+    setCenterMasterNotice("Sede "+saved.code+(wasEditing?" actualizada.":" creada.")+" Ya se puede elegir para planificar.");
+  });
+  const deactivateCenter=(center)=>run(async()=>{
+    if(!window.confirm("¿Desactivar la sede "+center.name+"? Sus rutas guardadas no cambiarán."))return;
+    const tkn=await token();
+    await api("/api/v1/distribution-centers/"+encodeURIComponent(center.id),"DELETE",tkn,{expected_version:center.version});
+    const fresh=await fetchCenters(tkn);setCenters(fresh.items);setCenterListPartial(fresh.truncated);
+    if(currentCenterId===center.id||editingCenter?.id===center.id)resetCenterEditor();
+    setCenterMasterNotice("Sede desactivada. No puede elegirse para nuevas rutas.");
+  });
   function selectAddress(s){
     setForm({address_label:s.label,latitude:s.latitude,longitude:s.longitude,precision:s.precision});
     setSuggestions([]);setSearchState("");setConfirmed(s.precision==="precise");setPreview(null);pendingSaveKey.current=null;
@@ -240,7 +316,7 @@ function App(){
   const optimize=()=>run(async()=>{
     const picked=orders.filter(o=>o.checked);
     if(!picked.length||picked.length>10)throw new Error("Selecciona entre 1 y 10 pedidos");
-    if(!distributionCenterReady(centerChoice,centerConfirmed,centerName,inside))throw new Error("Selecciona y confirma el centro de distribución antes de optimizar");
+    if(!currentCenterId||!distributionCenterReady(centerChoice,centerConfirmed,centerName,inside))throw new Error("Elige una sede activa del catálogo antes de optimizar");
     const p=await api("/api/v1/optimization/preview","POST",await token(),{
       depot:{id:"depot",...distributionCenterPayload(centerChoice)},
       stops:picked.map(o=>({id:o.id,latitude:o.geo.latitude,longitude:o.geo.longitude}))
@@ -296,9 +372,10 @@ function App(){
     if(!preview || !pendingSaveKey.current) throw new Error("Primero optimiza los pedidos");
     const picked=orders.filter(o=>o.checked);
     if(!picked.length || picked.length>10) throw new Error("Selecciona de 1 a 10 pedidos");
-    if(!distributionCenterReady(centerChoice,centerConfirmed,centerName,inside)) throw new Error("Selecciona y confirma el centro de distribución antes de guardar");
+    if(!currentCenterId||!distributionCenterReady(centerChoice,centerConfirmed,centerName,inside)) throw new Error("Elige una sede activa del catálogo antes de guardar");
     const saved=await api("/api/v1/optimized-routes","POST",await token(),{
       depot:distributionCenterPayload(centerChoice),
+      distribution_center_id:currentCenterId,
       order_ids:picked.map(o=>o.id),
       idempotency_key:pendingSaveKey.current,
     });
@@ -356,11 +433,30 @@ function App(){
         </section>
         <section className="panel">
           <div className="panelhead"><h2>02 · Centro de distribución</h2><span className="count">ORIGEN Y RETORNO · 1 VEHÍCULO</span></div>
+          <div className="center-master">
+            <div className="panelhead"><h3>Catálogo de sedes</h3><button type="button" className="outline" disabled={!user||busy} onClick={refreshCenters}>↻ Actualizar</button></div>
+            <label>Buscar sede<input type="search" aria-label="Buscar sedes registradas" value={centerMasterQuery} onChange={e=>setCenterMasterQuery(e.target.value)} placeholder="Código, nombre o dirección"/></label>
+            <p className="fineprint" role="status">{centerMasterNotice}{centerListPartial?" · Vista parcial por paginación":""}</p>
+            <div className="center-master-list">
+              {centers.filter(c=>[c.name,c.code,c.address_label].some(v=>String(v).toLocaleLowerCase("es-PE").includes(centerMasterQuery.trim().toLocaleLowerCase("es-PE")))).map(c=><div className="center-master-item" key={c.id}>
+                <div className="center-master-description"><strong>{c.name}</strong><small>{c.code} · {c.active?"ACTIVA":"INACTIVA"} · {c.address_label}</small></div>
+                <div className="center-master-actions">
+                  <button type="button" disabled={busy||!c.active} onClick={()=>chooseSavedCenter(c)}>Elegir</button>
+                  <button type="button" className="outline" disabled={busy||!c.active} onClick={()=>beginCenterEdit(c)}>Editar</button>
+                  <button type="button" className="outline" disabled={busy||!c.active} onClick={()=>deactivateCenter(c)}>Desactivar</button>
+                </div>
+              </div>)}
+              {!centers.length&&<p className="empty">No hay sedes consultadas. Usa Actualizar o registra una nueva.</p>}
+            </div>
+            <button type="button" className="outline" disabled={busy} onClick={resetCenterEditor}>+ Nueva sede</button>
+          </div>
           <div className="distribution-form">
+            <div className="panelhead"><h3>{editingCenter?"Editar sede":"Registrar sede"}</h3><span className="count">{currentCenterId?"SEDE ELEGIDA":"CATÁLOGO"}</span></div>
+            <label>Código de sede<input type="text" aria-label="Código de sede" maxLength={24} value={centerCode} disabled={Boolean(editingCenter)||busy} onChange={e=>setCenterCode(e.target.value.toUpperCase())} placeholder="Ej. CD-LIMA-01"/></label>
             <label>Nombre del centro<input type="text" aria-label="Nombre del centro de distribución" maxLength={80} value={centerName} onChange={e=>setCenterName(e.target.value)} placeholder="Centro de distribución"/></label>
             <label htmlFor="distribution-search">Buscar dirección del centro</label>
             <input id="distribution-search" type="search" autoComplete="off" minLength={3} maxLength={120}
-              value={centerQuery} onChange={e=>{setCenterQuery(e.target.value);setCenterChoice(null);setCenterConfirmed(false);setCenterSuggestions([]);setCenterSearchState("");setPreview(null);setSavedRoute(null);pendingSaveKey.current=null;}}
+              value={centerQuery} onChange={e=>{setCenterQuery(e.target.value);setCenterChoice(null);setCurrentCenterId(null);setCenterConfirmed(false);setCenterSuggestions([]);setCenterSearchState("");setPreview(null);setSavedRoute(null);pendingSaveKey.current=null;}}
               placeholder="Ej. Av. Universitaria, Lima" role="combobox" aria-autocomplete="list" aria-expanded={centerSuggestions.length>0} aria-controls="distribution-suggestions"/>
             {centerSearching&&<span className="lookup-status">Buscando…</span>}
             {centerSuggestions.length>0&&<div className="suggestions" id="distribution-suggestions" role="listbox" aria-label="Ubicaciones sugeridas del centro">
@@ -374,11 +470,16 @@ function App(){
               <span>{Number(depot.latitude).toFixed(5)}, {Number(depot.longitude).toFixed(5)}</span>
               {centerChoice.precision==="approximate"&&<label className="location-confirm"><input type="checkbox" checked={centerConfirmed} onChange={e=>setCenterConfirmed(e.target.checked)}/>Confirmo este punto como origen de ruta</label>}
             </div>}
-            <p className="fineprint">El origen seleccionado se usará para nuevas rutas; las rutas ya guardadas conservan sus coordenadas originales.</p>
+            <div className="center-editor-actions">
+              <button type="button" disabled={!user||busy||Boolean(currentCenterId&&!editingCenter)||!distributionCenterReady(centerChoice,centerConfirmed,centerName,inside)||!centerCode.trim()} onClick={persistCenter}>{editingCenter?"Guardar cambios":"Guardar nueva sede"}</button>
+              {editingCenter&&<button type="button" className="outline" disabled={busy} onClick={resetCenterEditor}>Cancelar edición</button>}
+              {currentCenterId&&!editingCenter&&<span className="lookup-status">Sede guardada y elegida. Usa Editar para modificarla.</span>}
+            </div>
+            <p className="fineprint">Las sedes se guardan en Firestore. Sólo las activas se pueden elegir para planificar; las rutas históricas conservan las coordenadas originales.</p>
           </div>
           <div className="panelhead"><h3>Optimizar paradas</h3><span className="count">Máx. 10 paradas</span></div>
-          <button className="accent" disabled={!user||busy||selected.length<1||selected.length>10||!distributionCenterReady(centerChoice,centerConfirmed,centerName,inside)} onClick={optimize}>{busy?"Procesando…":"Optimizar con OR-Tools"}</button>
-          {preview&&<button disabled={!user||busy||!distributionCenterReady(centerChoice,centerConfirmed,centerName,inside)} onClick={saveOptimized}>Guardar ruta optimizada</button>}
+          <button className="accent" disabled={!user||busy||selected.length<1||selected.length>10||!currentCenterId||!distributionCenterReady(centerChoice,centerConfirmed,centerName,inside)} onClick={optimize}>{busy?"Procesando…":"Optimizar con OR-Tools"}</button>
+          {preview&&<button disabled={!user||busy||!currentCenterId||!distributionCenterReady(centerChoice,centerConfirmed,centerName,inside)} onClick={saveOptimized}>Guardar ruta optimizada</button>}
           <p className="fineprint">Al guardar, el servidor vuelve a calcular y valida los pedidos; las métricas guardadas pueden diferir de la previsualización.</p>
           <p className="fineprint">Matrices obtenidas desde openrouteservice en el backend; requieren una clave configurada de forma segura en GCP.</p>
         </section>
@@ -408,6 +509,7 @@ function App(){
         {savedRoute&&<section className="panel results">
           <div className="panelhead"><h2>05 · Ruta persistida</h2><div><span className="count">{savedRoute.status}</span> <button className="outline" disabled={!user||busy} onClick={()=>run(()=>showSavedRoute(savedRoute.id))}>Actualizar estado</button></div></div>
           <p><strong>ID:</strong> {savedRoute.id}</p>
+          {savedRoute.distribution_center_id&&<p><strong>Centro de distribución:</strong> {savedRoute.distribution_center_name||savedRoute.distribution_center_id} · {savedRoute.distribution_center_id.slice(0,8)}</p>}
           <div className="metrics">
             <div className="metric"><small>Orden original</small><strong>{mins(savedRoute.baseline_seconds)}</strong><span>{km(savedRoute.baseline_meters)}</span></div>
             <div className="metric chosen"><small>Ruta guardada</small><strong>{mins(savedRoute.optimized_seconds)}</strong><span>{km(savedRoute.optimized_meters)}</span></div>

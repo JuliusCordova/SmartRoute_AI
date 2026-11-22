@@ -77,3 +77,17 @@
 .distribution-form .suggestions{background:white}
 .distribution-form .fineprint{margin:3px 0!important}
 .distribution-form .location-warning,.distribution-form .location-ok{line-height:1.5}
+
+/* US-017: persistent center catalog / CRUD */
+.center-master{background:#f4f8fa;border:1px solid #c9dce4;border-radius:12px;padding:13px;margin:10px 0 14px;display:grid;gap:10px}
+.center-master>label{font-size:12px}
+.center-master input[type=search]{display:block;width:100%;padding:10px 11px;border:1px solid #bfcbd2;border-radius:8px;background:#fff;margin-top:6px;font-size:12px}
+.center-master-list{display:grid;gap:9px;max-height:280px;overflow:auto}
+.center-master-item{background:#fff;border:1px solid #d9e6eb;padding:12px;border-radius:10px;display:grid;gap:9px}
+.center-master-description{min-width:0;display:grid;gap:4px}
+.center-master-description strong{font-size:13px;color:#203c4b}
+.center-master-description small{font-size:11px;color:#668492;overflow-wrap:anywhere}
+.center-master-actions,.center-editor-actions{display:flex;gap:6px;flex-wrap:wrap}
+.center-master-actions button,.center-editor-actions button{padding:7px 10px;font-size:11px;min-width:0}
+.center-master .panelhead h3{margin:0}
+.distribution-form .panelhead h3{margin:0}
