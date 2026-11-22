@@ -375,6 +375,7 @@ function App(){
     if(!currentCenterId||!distributionCenterReady(centerChoice,centerConfirmed,centerName,inside)) throw new Error("Elige una sede activa del catálogo antes de guardar");
     const saved=await api("/api/v1/optimized-routes","POST",await token(),{
       depot:distributionCenterPayload(centerChoice),
+      distribution_center_id:currentCenterId,
       order_ids:picked.map(o=>o.id),
       idempotency_key:pendingSaveKey.current,
     });
@@ -470,8 +471,9 @@ function App(){
               {centerChoice.precision==="approximate"&&<label className="location-confirm"><input type="checkbox" checked={centerConfirmed} onChange={e=>setCenterConfirmed(e.target.checked)}/>Confirmo este punto como origen de ruta</label>}
             </div>}
             <div className="center-editor-actions">
-              <button type="button" disabled={!user||busy||!distributionCenterReady(centerChoice,centerConfirmed,centerName,inside)||!centerCode.trim()} onClick={persistCenter}>{editingCenter?"Guardar cambios":"Guardar nueva sede"}</button>
+              <button type="button" disabled={!user||busy||Boolean(currentCenterId&&!editingCenter)||!distributionCenterReady(centerChoice,centerConfirmed,centerName,inside)||!centerCode.trim()} onClick={persistCenter}>{editingCenter?"Guardar cambios":"Guardar nueva sede"}</button>
               {editingCenter&&<button type="button" className="outline" disabled={busy} onClick={resetCenterEditor}>Cancelar edición</button>}
+              {currentCenterId&&!editingCenter&&<span className="lookup-status">Sede guardada y elegida. Usa Editar para modificarla.</span>}
             </div>
             <p className="fineprint">Las sedes se guardan en Firestore. Sólo las activas se pueden elegir para planificar; las rutas históricas conservan las coordenadas originales.</p>
           </div>
@@ -507,6 +509,7 @@ function App(){
         {savedRoute&&<section className="panel results">
           <div className="panelhead"><h2>05 · Ruta persistida</h2><div><span className="count">{savedRoute.status}</span> <button className="outline" disabled={!user||busy} onClick={()=>run(()=>showSavedRoute(savedRoute.id))}>Actualizar estado</button></div></div>
           <p><strong>ID:</strong> {savedRoute.id}</p>
+          {savedRoute.distribution_center_id&&<p><strong>Centro de distribución:</strong> {savedRoute.distribution_center_name||savedRoute.distribution_center_id} · {savedRoute.distribution_center_id.slice(0,8)}</p>}
           <div className="metrics">
             <div className="metric"><small>Orden original</small><strong>{mins(savedRoute.baseline_seconds)}</strong><span>{km(savedRoute.baseline_meters)}</span></div>
             <div className="metric chosen"><small>Ruta guardada</small><strong>{mins(savedRoute.optimized_seconds)}</strong><span>{km(savedRoute.optimized_meters)}</span></div>
