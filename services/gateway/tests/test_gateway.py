@@ -123,3 +123,30 @@ def test_tagged_qa_v2_backend_allowlist_is_explicit_and_rejects_unknown_urls():
         import pytest
         with pytest.raises(RuntimeError, match="Unapproved private SmartRoute backend URL"):
             backend_url()
+
+
+def test_us017_distribution_centers_allowlist_methods_and_ids():
+    from app.main import permitted_endpoint
+    base = "/api/v1/distribution-centers"
+    uuid = "aec305db-6e2f-5923-8b9f-87fcd9b37755"
+    assert permitted_endpoint("POST", base)
+    assert permitted_endpoint("GET", base)
+    for method in ("GET", "PUT", "DELETE"):
+        assert permitted_endpoint(method, base + "/" + uuid)
+    for path in (base + "/../../secrets", base + "/abc", base + "/" + uuid + "/delete"):
+        assert not permitted_endpoint("DELETE", path)
+    assert not permitted_endpoint("PATCH", base + "/" + uuid)
+    assert not permitted_endpoint("POST", base + "/" + uuid)
+
+
+def test_us017_distribution_centers_preflight_and_auth_before_iam():
+    with patch.dict(os.environ, ENV), patch("app.main.private_id_token") as mint:
+        assert client.get("/api/v1/distribution-centers").status_code == 401
+        assert client.post("/api/v1/distribution-centers", json={}).status_code == 401
+        r = client.options("/api/v1/distribution-centers",
+            headers={"Origin":"https://example.org", "Access-Control-Request-Method":"POST"})
+        assert r.status_code == 204
+        rejected = client.options("/api/v1/distribution-centers",
+            headers={"Origin":"https://intruder.example", "Access-Control-Request-Method":"POST"})
+        assert rejected.status_code == 403
+        mint.assert_not_called()
