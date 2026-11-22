@@ -5,6 +5,7 @@ import {getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOu
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./style.css";
+import {ORDER_STATES,ROUTE_STATES,stateLabel,filterOrders,filterRoutes,summarizeOperations,fetchPaged} from "./operations.js";
 
 const cfg = window.__SMARTROUTE_CONFIG__ || {};
 const configured = Boolean(cfg.firebase?.apiKey && cfg.firebase?.appId && cfg.gatewayUrl);
@@ -88,12 +89,62 @@ function MapPanel({orders,depot,preview,chosen,savedRoute}){
   return <div className="mapWrap"><div ref={ref} className="map" /><span className="mapCaption">{savedRoute ? (savedRoute.geometry_origin==="openrouteservice"?"Ruta guardada · recorrido vial estimado":"Ruta guardada · conectores esquemáticos, NO recorrido vial") : preview ? (preview.route_geometry?"Recorrido vial estimado":"Conectores esquemáticos; matriz vial estimada"):"Orden original · conectores esquemáticos"}</span></div>;
 }
 
+
+function ExecutiveDashboard({orders,routes,coverage,refresh,busy,user}) {
+  const [state,setState]=useState("ALL");
+  const scope=filterRoutes(routes,state), k=summarizeOperations(orders,scope);
+  const orderStates=["PENDING","ASSIGNED","IN_TRANSIT","DELIVERED","FAILED"];
+  const shades=["#ffc75c","#6daefa","#9b88fd","#36d9a8","#ff7d91"];
+  const ratio=n=>k.orderCount?((100*n/k.orderCount).toFixed(2)+"%"):"0%";
+  return <section className="executive" aria-label="Centro de control ejecutivo">
+    <div className="executive-top">
+      <div><span className="eyebrow">SMARTROUTE INTELLIGENCE / COMMAND CENTER</span>
+        <h1>La operación, <em>en una mirada.</em></h1>
+        <p>Centro de control del piloto · Firebase + Firestore · Indicadores calculados únicamente desde datos consultados.</p></div>
+      <div className="executive-actions"><span className="signal"><span className="signal-dot"/>{user?"SESIÓN AUTENTICADA":"SIN SESIÓN"}</span>
+        <button disabled={!user||busy} onClick={refresh}>{busy?"Actualizando…":"↻ Actualizar tablero"}</button></div>
+    </div>
+    <div className="executive-kpis">
+      <div className="executive-kpi"><span>PEDIDOS</span><strong>{k.orderCount}</strong><small>Registros recuperados</small></div>
+      <div className="executive-kpi"><span>RUTAS</span><strong>{k.routeCount}</strong><small>{state==="ALL"?"Todas las consultadas":stateLabel[state]}</small></div>
+      <div className="executive-kpi"><span>EFECTIVIDAD</span><strong>{k.deliveryRate===null?"—":k.deliveryRate.toFixed(1)+"%"}</strong><small>Entregadas / resueltas</small></div>
+      <div className="executive-kpi accent-kpi"><span>MEJORA ESTIMADA</span><strong>{k.estimatedImprovement===null?"—":k.estimatedImprovement.toFixed(1)+"%"}</strong><small>{k.estimatedRoutes} rutas · tiempos de matriz vial</small></div>
+    </div>
+    <div className="executive-panels">
+      <div className="exec-chart">
+        <div className="exec-chart-title"><div><b>Pipeline de pedidos</b><span>Distribución por estado</span></div><span className="live-tag">FIRESTORE</span></div>
+        <div className="stacked-meter" role="img" aria-label="Distribución de pedidos por estado">
+          {orderStates.map((st,i)=><span key={st} style={{width:ratio(k.ordersByState[st]),background:shades[i]}}/>)}
+        </div>
+        <div className="exec-bars">{orderStates.map((st,i)=><div className="exec-bar-line" key={st}>
+          <div className="exec-bar-name"><i style={{background:shades[i]}}/>{stateLabel[st]}</div>
+          <div className="exec-track"><div style={{width:ratio(k.ordersByState[st]),background:shades[i]}}/></div><b>{k.ordersByState[st]}</b>
+        </div>)}</div>
+      </div>
+      <div className="exec-chart">
+        <div className="exec-chart-title"><div><b>Estado de rutas</b><span>Filtro ejecutivo interactivo</span></div><span className="live-tag">OPERACIÓN</span></div>
+        <div className="route-chips" role="group" aria-label="Filtrar rutas del tablero">
+          {ROUTE_STATES.map(st=><button key={st} className={state===st?"chip selected":"chip"} aria-pressed={state===st} onClick={()=>setState(st)}>{stateLabel[st]}</button>)}
+        </div>
+        <div className="route-mini-grid">{["PLANNED","ACTIVE","COMPLETED","CANCELLED"].map(st=><div className="route-mini" key={st}>
+          <span>{stateLabel[st]}</span><strong>{k.routesByState[st]}</strong></div>)}</div>
+        <div className="exec-note">{k.resolved} pedidos resueltos · {k.delivered} entregados · {k.failed} fallidos.</div>
+      </div>
+    </div>
+    <div className="executive-footer"><span>{coverage.ordersTruncated||coverage.routesTruncated?"ATENCIÓN: datos parciales por límite de páginas":"Vista calculada sobre todas las páginas recuperadas"}</span>
+      <span>Sin GPS observado · sin puntualidad medida · ahorros estimados</span></div>
+  </section>;
+}
+
 function App(){
   const [user,setUser]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(""),[orders,setOrders]=useState([]),[form,setForm]=useState(starting),[depot,setDepot]=useState({latitude:"-12.095",longitude:"-77.035"}),[preview,setPreview]=useState(null),[status,setStatus]=useState("Inicia sesión para consultar pedidos.");
   const [suggestions,setSuggestions]=useState([]),[searchState,setSearchState]=useState(""),[confirmed,setConfirmed]=useState(false),[searching,setSearching]=useState(false);
   const [savedRoutes,setSavedRoutes]=useState([]),[savedRoute,setSavedRoute]=useState(null);
   const [drivers,setDrivers]=useState([]),[selectedDriver,setSelectedDriver]=useState("");
   const pendingSaveKey=useRef(null),pendingAssignmentKey=useRef(null);
+  const [orderState,setOrderState]=useState("ALL"),[orderSearch,setOrderSearch]=useState("");
+  const [routeListState,setRouteListState]=useState("ALL");
+  const [coverage,setCoverage]=useState({ordersTruncated:false,routesTruncated:false});
   useEffect(()=>auth?onAuthStateChanged(auth,u=>{setUser(u);setPreview(null);setOrders([]);setSavedRoutes([]);setSavedRoute(null);setDrivers([]);setSelectedDriver("");pendingSaveKey.current=null;pendingAssignmentKey.current=null;setStatus(u?"Sesión iniciada. Consulta tus pedidos.":"Inicia sesión para consultar pedidos.");},e=>setError(e.code)):undefined,[]);
   useEffect(()=>{
     if(!user||form.latitude!==null||form.address_label.trim().length<3){
@@ -117,7 +168,37 @@ function App(){
   }
   async function run(fn){setBusy(true);setError("");try{await fn()}catch(e){setError(e.message)}finally{setBusy(false)}}
   async function token(){if(!auth?.currentUser) throw new Error("Inicia sesión primero");return auth.currentUser.getIdToken();}
-  const load=()=>run(async()=>{const x=await api("/api/v1/orders?limit=50","GET",await token());setOrders(x.items.map(o=>({...o,checked:o.status==="PENDING"})));setPreview(null);pendingSaveKey.current=null;setStatus(x.items.length+" pedidos recuperados de Firestore.");});
+  async function getAllOrders(tkn) {
+    return fetchPaged((limit,cursor)=>api("/api/v1/orders?limit="+limit+(cursor?"&cursor="+encodeURIComponent(cursor):""),"GET",tkn),{limit:50,maxPages:10});
+  }
+  async function getAllRoutes(tkn) {
+    return fetchPaged((limit,cursor)=>api("/api/v1/optimized-routes?limit="+limit+(cursor?"&cursor="+encodeURIComponent(cursor):""),"GET",tkn),{limit:20,maxPages:10});
+  }
+  const refreshExecutive=()=>run(async()=>{
+    const tkn=await token();
+    const [o,r]=await Promise.all([getAllOrders(tkn),getAllRoutes(tkn)]);
+    setOrders(o.items.map(x=>({...x,checked:false})));setSavedRoutes(r.items);
+    setCoverage({ordersTruncated:o.truncated,routesTruncated:r.truncated});
+    setPreview(null);pendingSaveKey.current=null;
+    setStatus("Centro de control actualizado: "+o.items.length+" pedidos y "+r.items.length+" rutas."+(o.truncated||r.truncated?" Consulta parcial.":""));
+  });
+  useEffect(()=>{
+    if(!user)return;
+    let live=true;
+    (async()=>{
+      try{
+        const tkn=await user.getIdToken();
+        const [o,r]=await Promise.all([getAllOrders(tkn),getAllRoutes(tkn)]);
+        if(!live)return;
+        setOrders(o.items.map(x=>({...x,checked:false})));
+        setSavedRoutes(r.items);
+        setCoverage({ordersTruncated:o.truncated,routesTruncated:r.truncated});
+        setStatus("Centro de control conectado: "+o.items.length+" pedidos y "+r.items.length+" rutas recuperadas."+(o.truncated||r.truncated?" Vista parcial.":""));
+      }catch(e){if(live)setError("No se pudo cargar el tablero: "+e.message);}
+    })();
+    return ()=>{live=false};
+  },[user]);
+  const load=()=>run(async()=>{const x=await getAllOrders(await token());setOrders(x.items.map(o=>({...o,checked:false})));setCoverage(old=>({...old,ordersTruncated:x.truncated}));setPreview(null);pendingSaveKey.current=null;setStatus(x.items.length+" pedidos recuperados de Firestore."+(x.truncated?" Consulta parcial.":""));});
   const create=()=>run(async()=>{
     if(form.latitude===null||form.longitude===null) throw new Error("Selecciona una dirección de las sugerencias antes de guardar");
     const lat=Number(form.latitude),lng=Number(form.longitude);
@@ -125,8 +206,8 @@ function App(){
     if(form.precision!=="precise"&&!confirmed)throw new Error("ALERTA: ubicación aproximada; confirma el punto del mapa antes de guardar");
     await api("/api/v1/orders","POST",await token(),{address_label:form.address_label.trim(),geo:{latitude:lat,longitude:lng}});
     setForm(starting);setConfirmed(false);setSuggestions([]);
-    const x=await api("/api/v1/orders?limit=50","GET",await token());
-    setOrders(x.items.map(o=>({...o,checked:o.status==="PENDING"})));setPreview(null);pendingSaveKey.current=null;setStatus("Pedido creado y consultado desde Firestore.");
+    const x=await getAllOrders(await token());
+    setOrders(x.items.map(o=>({...o,checked:false})));setCoverage(old=>({...old,ordersTruncated:x.truncated}));setPreview(null);pendingSaveKey.current=null;setStatus("Pedido creado y consultado desde Firestore.");
   });
   const optimize=()=>run(async()=>{
     const picked=orders.filter(o=>o.checked);
@@ -139,9 +220,9 @@ function App(){
     setPreview(p);setSavedRoute(null);pendingSaveKey.current=crypto.randomUUID();setStatus("Secuencia optimizada con matriz vial. Resultado estimado, no observado.");
   });
     const refreshSaved=()=>run(async()=>{
-    const x=await api("/api/v1/optimized-routes?limit=20","GET",await token());
-    setSavedRoutes(x.items||[]);
-    setStatus((x.items||[]).length+" rutas optimizadas recuperadas de Firestore.");
+    const x=await getAllRoutes(await token());
+    setSavedRoutes(x.items);setCoverage(old=>({...old,routesTruncated:x.truncated}));
+    setStatus(x.items.length+" rutas optimizadas recuperadas de Firestore."+(x.truncated?" Consulta parcial.":""));
   });
   async function showSavedRoute(id){
     const detail=await api("/api/v1/optimized-routes/"+encodeURIComponent(id),"GET",await token());
@@ -174,10 +255,10 @@ function App(){
     const tkn=await token();
     const [detail,routes]=await Promise.all([
       api("/api/v1/optimized-routes/"+encodeURIComponent(id),"GET",tkn),
-      api("/api/v1/optimized-routes?limit=20","GET",tkn),
+      getAllRoutes(tkn),
     ]);
     setSavedRoute(detail);
-    setSavedRoutes(routes.items||[]);
+    setSavedRoutes(routes.items);setCoverage(old=>({...old,routesTruncated:routes.truncated}));
     setDrivers(old=>old.filter(d=>d.uid!==assigned.driver_id));
     setSelectedDriver("");
     pendingAssignmentKey.current=null;
@@ -196,22 +277,25 @@ function App(){
     setSavedRoute(saved);setPreview(null);pendingSaveKey.current=null;
     const tkn=await token();
     const [ordersResult,routesResult]=await Promise.all([
-      api("/api/v1/orders?limit=50","GET",tkn),
-      api("/api/v1/optimized-routes?limit=20","GET",tkn),
+      getAllOrders(tkn),
+      getAllRoutes(tkn),
     ]);
     setOrders(ordersResult.items.map(o=>({...o,checked:false})));
-    setSavedRoutes(routesResult.items||[]);
+    setSavedRoutes(routesResult.items);setCoverage({ordersTruncated:ordersResult.truncated,routesTruncated:routesResult.truncated});
     setStatus("Ruta "+saved.id.slice(0,8)+" guardada en Firestore como PLANNED. Pedidos reservados.");
     try { await showSavedRoute(saved.id); }
     catch { setStatus("Ruta guardada; vuelve a seleccionarla en Rutas guardadas para ver el mapa."); }
   });
   const selected=orders.filter(o=>o.checked);
+  const visibleOrders=filterOrders(orders,orderState,orderSearch);
+  const visibleRoutes=filterRoutes(savedRoutes,routeListState);
   return <div className="app">
     <header><div className="brand"><span className="brandmark">↝</span><div><b>SmartRoute <em>AI</em></b><small>CENTRO DE OPERACIONES · PILOTO</small></div></div><div className="identity">{user?<><span>{user.email}</span><button className="outline" onClick={()=>run(()=>signOut(auth))}>Salir</button></>:<button onClick={()=>run(()=>signInWithPopup(auth,new GoogleAuthProvider()))} disabled={!configured||busy}>Entrar con Google</button>}</div></header>
     <div className="subhead"><span>UPN Capstone · Lima Metropolitana</span><span className="tag">DATOS DE PEDIDOS SINTÉTICOS · MATRIZ ESTIMADA</span></div>
     {!configured&&<div className="notice error">El frontend aún no tiene configuración Firebase/gateway. Revisa las variables del servicio Cloud Run.</div>}
     {error&&<div className="notice error" role="alert">{error}</div>}
     <div className="notice" role="status">{status}</div>
+    <ExecutiveDashboard orders={orders} routes={savedRoutes} coverage={coverage} refresh={refreshExecutive} busy={busy} user={user}/>
     <main>
       <aside>
         <section className="panel">
@@ -236,7 +320,11 @@ function App(){
             <button type="submit" disabled={!user||busy||form.latitude===null||(form.precision!=="precise"&&!confirmed)}>Guardar pedido</button>
           </form>
           <div className="panelhead"><h3>Pedidos en Firestore</h3><span className="count">{selected.length} seleccionados</span></div>
-          <div className="orders">{orders.length?orders.map(o=><label className="order" key={o.id}><input type="checkbox" checked={o.checked} disabled={busy||o.status!=="PENDING"} onChange={e=>{setOrders(old=>old.map(x=>x.id===o.id?{...x,checked:e.target.checked}:x));setPreview(null);pendingSaveKey.current=null}}/><span><strong>{o.address_label}</strong><small>{o.status} · {o.id.slice(0,8)}</small></span></label>):<p className="empty">No hay pedidos cargados. Pulsa Actualizar.</p>}</div>
+          <div className="filter-grid"><label>Estado del pedido<select aria-label="Filtrar pedidos por estado" value={orderState} onChange={e=>setOrderState(e.target.value)}>
+            {ORDER_STATES.map(st=><option key={st} value={st}>{stateLabel[st]}</option>)}
+          </select></label><label>Buscar dirección o ID<input type="search" aria-label="Buscar pedidos" placeholder="Buscar pedido…" value={orderSearch} onChange={e=>setOrderSearch(e.target.value)}/></label></div>
+          <p className="filter-result" role="status">{visibleOrders.length} de {orders.length} pedidos visibles{coverage.ordersTruncated?" · Consulta parcial":""}</p>
+          <div className="orders">{visibleOrders.length?visibleOrders.map(o=><label className="order" key={o.id}><input type="checkbox" checked={o.checked} disabled={busy||o.status!=="PENDING"} onChange={e=>{setOrders(old=>old.map(x=>x.id===o.id?{...x,checked:e.target.checked}:x));setPreview(null);pendingSaveKey.current=null}}/><span><strong>{o.address_label}</strong><small>{o.status} · {o.id.slice(0,8)}</small></span></label>): <p className="empty">{orders.length?"No hay pedidos con este filtro.":"No hay pedidos cargados. Pulsa Actualizar."}</p>}</div>
         </section>
         <section className="panel">
           <div className="panelhead"><h2>02 · Optimizar ruta</h2><span className="count">1 vehículo · máx. 10 paradas</span></div>
@@ -249,12 +337,15 @@ function App(){
         <section className="panel">
           <div className="panelhead"><h2>04 · Rutas guardadas</h2><button className="outline" disabled={!user||busy} onClick={refreshSaved}>Actualizar rutas</button></div>
           <p>Rutas optimizadas guardadas en Firestore: PLANNED (planificadas), ACTIVE (en recorrido) y COMPLETED (finalizadas).</p>
-          {savedRoutes.length? <div className="orders">{savedRoutes.map(r=>
+          <div className="filter-grid"><label>Estado de ruta<select aria-label="Filtrar rutas por estado" value={routeListState} onChange={e=>setRouteListState(e.target.value)}>
+            {ROUTE_STATES.map(st=><option key={st} value={st}>{stateLabel[st]}</option>)}
+          </select></label></div><p className="filter-result">{visibleRoutes.length} de {savedRoutes.length} rutas visibles{coverage.routesTruncated?" · Consulta parcial":""}</p>
+          {visibleRoutes.length? <div className="orders">{visibleRoutes.map(r=>
             <button className="outline" style={{textAlign:"left",width:"100%",marginBottom:8}} key={r.id}
               onClick={()=>run(()=>showSavedRoute(r.id))}>
               {r.id.slice(0,8)} · {r.order_ids.length} entregas · {mins(r.optimized_seconds)} · {km(r.optimized_meters)} · {r.status} · {r.driver_id?"Asignada":"Sin conductor"}
             </button>
-          )}</div> : <p className="empty">No se han consultado rutas. Pulsa Actualizar rutas.</p>}
+          )}</div> : <p className="empty">{savedRoutes.length?"No hay rutas con este filtro.":"No se han consultado rutas. Pulsa Actualizar rutas."}</p>}
         </section>
       </aside>
       <article>
