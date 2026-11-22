@@ -417,7 +417,7 @@ flowchart TD
   B --> OT[OR-Tools secuencia óptima encontrada]
   G -. validación de URL permitida .-> B
   SM[Secret Manager] -. claves de ORS y geocoding .-> B
-  G -. controles IAM / RBAC .-> F
+  G -. valida Firebase y token IAM .-> B
 ```
 
 > La línea discontinua Gateway→Firestore representa defensa conceptual de seguridad y **no** una conexión directa: el Gateway no realiza operaciones de datos sobre Firestore; el Backend las realiza. Los cálculos de OR-Tools no certifican óptimo global. Gemini/GPS no se incluyen como servicio runtime probado.
