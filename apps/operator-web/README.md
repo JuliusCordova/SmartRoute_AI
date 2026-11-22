@@ -1,3 +1,13 @@
+## US-017 — CRUD de sedes persistente (22/11/2026)
+
+Se incorpora el maestro **Centros de distribución**: altas, consulta por listado, búsqueda por código/nombre/dirección, edición con versión y desactivación lógica. Los centros se guardan en Firestore `smartroute`, no solo en la sesión. La UI utiliza autocompletado de direcciones Geoapify mediante la API, y requiere confirmar puntos aproximados.
+
+La optimización exige seleccionar una sede **activa** del catálogo, y al persistir una ruta se guarda `distribution_center_id`, un snapshot `distribution_center_name` y el `depot` de coordenadas. Las rutas históricas y el contrato anterior siguen válidos. Ver [US-017 SDD](../../docs/US017_SEDES_CRUD_2026-11-22.md).
+
+Esta entrega está **en código, no desplegada**. La validación E2E en una revisión QA de Cloud Run queda pendiente. No dar por cumplida la historia sin capturas y revisión de roles/concurrencia.
+
+---
+
 ## US-004 y tablero ejecutivo (implementación de rama)
 
 Se incorpora un **Centro de Control Ejecutivo** con KPIs de pedidos y rutas, efectividad de entregas, mejora estimada ponderada, barras de estados y filtro de rutas. El panel carga las páginas de Firestore a través del Gateway con Firebase; si se alcanza el límite de páginas informa vista parcial. El módulo de pedidos incorpora filtros por estado y búsqueda combinada por dirección e ID, sin modificar datos.
