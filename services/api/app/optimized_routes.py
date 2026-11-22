@@ -9,6 +9,7 @@ from .orders import Geo
 class OptimizedRouteCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     depot: Geo
+    distribution_center_id: str | None = Field(default=None, min_length=1, max_length=128)
     order_ids: list[str] = Field(min_length=1, max_length=10)
     idempotency_key: UUID
 
@@ -30,6 +31,8 @@ class OptimizedRoute(BaseModel):
     assigned_at: datetime | None = None
     created_by: str
     depot: Geo
+    distribution_center_id: str | None = None
+    distribution_center_name: str | None = None
     order_ids: list[str]
     baseline_order_ids: list[str]
     ordered_order_ids: list[str]
