@@ -15,6 +15,9 @@ SmartRoute AI es un MVP académico de siete semanas para gestionar pedidos, segu
 
 > **Nota de vigencia:** las secciones cronológicas más abajo describen hitos históricos (incluidos Flutter, scaffold y actividades pendientes en ese momento) y no deben utilizarse como estado actual. La decisión vigente de aplicación móvil es **Android Kotlin/Compose**; el panel de mapas usa **OpenStreetMap** y la matriz vial **openrouteservice**, no Google Maps en el flujo verificado.
 
+
+- [Matriz de aceptación P0 (12 historias, capturas E01–E12, brechas)](docs/evidence/MATRIZ_ACEPTACION_P0_2026-11-22.md): **8 aceptadas QA, 2 parciales y 2 pendientes**. Las capturas originales están en un anexo Word separado, no versionadas como imágenes públicas.
+
 ## Fuente de verdad de requisitos
 
 - [Project Charter y Especificación SDD v1.0](docs/SmartRoute_AI_Charter_SDD_v1.md): objetivos, alcance, restricciones, arquitectura, épicas, historias de usuario, contratos API, esquema lógico de datos, aceptación y backlog semanal.
