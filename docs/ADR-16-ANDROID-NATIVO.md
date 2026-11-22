@@ -1,7 +1,7 @@
 # ADR-16 — Android nativo para SmartRoute DRIVER
 
 **Fecha de decisión:** 2026-11-15 (reconciliada 2026-11-21).  
-**Estado:** Implementado y probado en rama `feat/mobile-driver-android-base` / PR #56; **pendiente de integración del código a `main`**.  
+**Estado vigente (2026-11-22):** Android Kotlin/Compose integrado a `main` por PR #60 (`44f9748`); piloto QA E2E validado para una ruta nueva. El PR #56 queda como rama histórica, no como bloqueo para la integración vigente.  
 **Alcance:** Aplicación móvil DRIVER, Capstone UPN.
 
 ## Contexto
@@ -24,7 +24,7 @@ Adoptar Android nativo para el rol DRIVER, con capas `domain`, `data`, `di` y `u
 - Prueba controlada de inicio, registro de 5 entregas y 1 incidencia, cierre de ruta `COMPLETED` y persistencia: [evidencia US-012 a US-014](evidence/US012_US013_US014_QA_FINAL_PASS_2026-11-21.md).
 - Los servicios Cloud Run US-014 usados en las pruebas están etiquetados con 0 % del tráfico principal; no inferir de ello promoción a producción.
 - **No** se implementa compatibilidad iOS ni se acredita navegación giro a giro o seguimiento GPS productivo.
-- El código permanece en PR #56 y requiere revisión de seguridad antes del merge; `ENABLE_QA_WRITE_TEST` debe desactivarse para distribución general.
+- El código está integrado en `main` con `ENABLE_QA_WRITE_TEST=false`. La prueba de escritura sobre la ruta `aec305db...` se habilitó únicamente en un build **local DEBUG**; no promover ese ajuste local ni distribuir ese APK como versión general.
 
 ## Consecuencias para la entrega UPN
 
@@ -32,4 +32,4 @@ Actualizar el stack de la memoria, diagramas, SDD y presentación: referencias a
 
 ## Registro de control
 
-Esta integración es **solo documental**, no modifica Android, Gateway, API, Firestore, IAM o Cloud Run.
+Este ADR documenta la decisión; el flujo QA del 22/11 se ejecutó mediante despliegues etiquetados sin tráfico principal. Consultar [acta E2E](evidence/E2E_OPERADOR_ANDROID_QA_2026-11-22.md).
