@@ -51,7 +51,7 @@ def test_gps_active_owned_stale_and_completion_cleanup(monkeypatch):
     got=location.latest(route_id=rid)
     assert got.status=="CURRENT" and got.driver_id==uid
     # AC-007: position older than 120 seconds is stale, never shown as current
-    ref.update({"stored_at":datetime.now(timezone.utc)-timedelta(seconds=125)})
+    ref.update({"captured_at":datetime.now(timezone.utc)-timedelta(seconds=125)})
     assert location.latest(route_id=rid).status=="STALE"
     # Simulate completion of the sole test delivery; workflow cleans location atomically.
     db.collection("orders").document(oid).update({"status":"DELIVERED"})
