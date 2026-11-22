@@ -184,6 +184,22 @@ function App(){
     setPreview(null);pendingSaveKey.current=null;
     setStatus("Centro de control actualizado: "+o.items.length+" pedidos y "+r.items.length+" rutas."+(o.truncated||r.truncated?" Consulta parcial.":""));
   });
+  useEffect(()=>{
+    if(!user)return;
+    let live=true;
+    (async()=>{
+      try{
+        const tkn=await user.getIdToken();
+        const [o,r]=await Promise.all([getAllOrders(tkn),getAllRoutes(tkn)]);
+        if(!live)return;
+        setOrders(o.items.map(x=>({...x,checked:false})));
+        setSavedRoutes(r.items);
+        setCoverage({ordersTruncated:o.truncated,routesTruncated:r.truncated});
+        setStatus("Centro de control conectado: "+o.items.length+" pedidos y "+r.items.length+" rutas recuperadas."+(o.truncated||r.truncated?" Vista parcial.":""));
+      }catch(e){if(live)setError("No se pudo cargar el tablero: "+e.message);}
+    })();
+    return ()=>{live=false};
+  },[user]);
   const load=()=>run(async()=>{const x=await getAllOrders(await token());setOrders(x.items.map(o=>({...o,checked:false})));setCoverage(old=>({...old,ordersTruncated:x.truncated}));setPreview(null);pendingSaveKey.current=null;setStatus(x.items.length+" pedidos recuperados de Firestore."+(x.truncated?" Consulta parcial.":""));});
   const create=()=>run(async()=>{
     if(form.latitude===null||form.longitude===null) throw new Error("Selecciona una dirección de las sugerencias antes de guardar");
