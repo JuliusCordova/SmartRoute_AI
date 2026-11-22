@@ -26,6 +26,7 @@ APPROVED_API_URLS = frozenset({
     "https://us012-version-test---smartroute-api-staging-mkqutd4koq-uc.a.run.app",
     "https://us014-backend-test---smartroute-api-staging-mkqutd4koq-uc.a.run.app",
     "https://qa-route-v2---smartroute-api-staging-mkqutd4koq-uc.a.run.app",
+    "https://qa-bca4df3---smartroute-api-staging-mkqutd4koq-uc.a.run.app",
 })
 
 
