@@ -417,7 +417,7 @@ def report_driver_location(
 ):
     try:
         return repo.record(driver_uid=actor.uid, fix=payload)
-    except GPSDenied as exc:
+    except (GPSDenied, QaWriteGuardDenied) as exc:
         raise HTTPException(403, str(exc)) from None
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
