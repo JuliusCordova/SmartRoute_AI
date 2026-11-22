@@ -77,6 +77,7 @@ class FirestoreDriverWorkflowRepository:
             enforce_qa_write_guard(driver_uid=driver_uid, route_id=route_id)
 
             route_ref = self.db.collection("routes").document(route_id)
+            location_ref = self.db.collection("driver_last_locations").document(route_id)
             event_id = sha256((driver_uid + ":" + route_id + ":" + key).encode()).hexdigest()
             event_ref = self.db.collection("driver_route_events").document(event_id)
             route_snap = route_ref.get(transaction=tx)
@@ -191,6 +192,8 @@ class FirestoreDriverWorkflowRepository:
                 })
                 tx.update(driver_ref, {"available": False, "updated_at": now})
             if action == "complete":
+                # Remove last GPS when route closes; no location history is retained.
+                tx.delete(location_ref)
                 tx.delete(occupancy_ref)
                 tx.update(driver_ref, {"available": True, "updated_at": now})
                 tx.set(history_ref, {

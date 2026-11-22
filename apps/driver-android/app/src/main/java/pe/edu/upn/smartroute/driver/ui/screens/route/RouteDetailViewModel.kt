@@ -26,6 +26,25 @@ class RouteDetailViewModel(
 
     fun canMutateRoute(routeId: String): Boolean = routes.canMutateRoute(routeId)
 
+    private val _gpsError = MutableStateFlow<String?>(null)
+    val gpsError: StateFlow<String?> = _gpsError.asStateFlow()
+    private val _gpsLastSent = MutableStateFlow<String?>(null)
+    val gpsLastSent: StateFlow<String?> = _gpsLastSent.asStateFlow()
+
+    /** GPS only with consent in the visible ACTIVE route screen. */
+    suspend fun sendGps(latitude: Double, longitude: Double, accuracyMeters: Float,
+                        timestampIso: String) {
+        val route = (_state.value as? UiState.Success)?.data ?: return
+        if (route.status != RouteStatus.ACTIVE || isDemoData || !canMutateRoute(route.id)) return
+        try {
+            routes.submitLocation(route.id, latitude, longitude, accuracyMeters, timestampIso)
+            _gpsLastSent.value = timestampIso
+            _gpsError.value = null
+        } catch (e: Exception) {
+            _gpsError.value = e.toUserMessage()
+        }
+    }
+
     private val _starting = MutableStateFlow(false)
     val starting: StateFlow<Boolean> = _starting.asStateFlow()
     private val _startError = MutableStateFlow<String?>(null)

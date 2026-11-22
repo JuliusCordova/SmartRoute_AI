@@ -26,7 +26,7 @@ async function api(path, method, token, data){
   return body;
 }
 
-function MapPanel({orders,depot,preview,chosen,savedRoute,centerLabel}){
+function MapPanel({orders,depot,preview,chosen,savedRoute,centerLabel,gps}){
   const ref=useRef(null), map=useRef(null), layers=useRef(null);
   useEffect(()=>{
     if(!ref.current)return;
@@ -53,6 +53,12 @@ function MapPanel({orders,depot,preview,chosen,savedRoute,centerLabel}){
           .bindPopup(stop.sequence+". "+stop.address_label).addTo(group);
       });
       path.push(d);
+      if(gps&&gps.route_id===savedRoute.id){
+        L.circleMarker([gps.latitude,gps.longitude],{
+          radius:10,color:gps.status==="STALE"?"#9c6c21":"#216bda",
+          fillColor:gps.status==="STALE"?"#ffcc74":"#63b6ff",fillOpacity:.9,weight:3
+        }).bindPopup("GPS "+gps.status+" · precisión "+Math.round(gps.accuracy_m)+" m").addTo(group);
+      }
       if(savedRoute.route_geometry?.length){
         L.polyline(savedRoute.route_geometry.map(([lng,lat])=>[lat,lng]),
           {color:"#e5a219",weight:5,opacity:.9}).addTo(group);
@@ -87,7 +93,7 @@ function MapPanel({orders,depot,preview,chosen,savedRoute,centerLabel}){
       L.polyline([...points,points[0]],{color:"#758c9d",weight:2,dashArray:"5 7"}).addTo(group);
     }
     if(points.length>1) map.current.fitBounds(L.latLngBounds(points).pad(.25),{maxZoom:14});
-  },[orders,depot,preview,chosen,savedRoute,centerLabel]);
+  },[orders,depot,preview,chosen,savedRoute,centerLabel,gps]);
   return <div className="mapWrap"><div ref={ref} className="map" /><span className="mapCaption">{savedRoute ? (savedRoute.geometry_origin==="openrouteservice"?"Ruta guardada · recorrido vial estimado":"Ruta guardada · conectores esquemáticos, NO recorrido vial") : preview ? (preview.route_geometry?"Recorrido vial estimado":"Conectores esquemáticos; matriz vial estimada"):"Orden original · conectores esquemáticos"}</span></div>;
 }
 
@@ -142,6 +148,7 @@ function App(){
   const [user,setUser]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(""),[orders,setOrders]=useState([]),[form,setForm]=useState(starting),[depot,setDepot]=useState({latitude:"-12.095",longitude:"-77.035"}),[preview,setPreview]=useState(null),[status,setStatus]=useState("Inicia sesión para consultar pedidos.");
   const [suggestions,setSuggestions]=useState([]),[searchState,setSearchState]=useState(""),[confirmed,setConfirmed]=useState(false),[searching,setSearching]=useState(false);
   const [savedRoutes,setSavedRoutes]=useState([]),[savedRoute,setSavedRoute]=useState(null);
+  const [gpsPosition,setGpsPosition]=useState(null),[gpsNotice,setGpsNotice]=useState("");
   const [drivers,setDrivers]=useState([]),[selectedDriver,setSelectedDriver]=useState("");
   const [centerName,setCenterName]=useState("Centro de distribución");
   const [centerQuery,setCenterQuery]=useState(initialCenter.label),[centerChoice,setCenterChoice]=useState(initialCenter);
@@ -331,11 +338,24 @@ function App(){
   async function showSavedRoute(id){
     const detail=await api("/api/v1/optimized-routes/"+encodeURIComponent(id),"GET",await token());
     setSavedRoute(detail);
+    setGpsPosition(null);setGpsNotice("");
     setSelectedDriver("");
     pendingAssignmentKey.current=null;
     setPreview(null);
     setStatus("Ruta "+detail.id.slice(0,8)+" recuperada con "+detail.stops.length+" paradas en secuencia.");
   }
+  const loadGps=()=>run(async()=>{
+    if(!savedRoute||savedRoute.status!=="ACTIVE")throw new Error("GPS disponible solo en ruta ACTIVE");
+    try {
+      const gps=await api("/api/v1/routes/"+encodeURIComponent(savedRoute.id)+"/location","GET",await token());
+      setGpsPosition(gps);
+      setGpsNotice(gps.status==="STALE"?"Última posición caducada (>2 min).":"Última posición registrada (observada).");
+    }catch(e){
+      setGpsPosition(null);
+      if(e.message.includes("404")){setGpsNotice("Aún no existe posición GPS para esta ruta.");return;}
+      throw e;
+    }
+  });
   const loadDrivers=()=>run(async()=>{
     const candidates=await api("/api/v1/drivers?available=true&limit=20","GET",await token());
     setDrivers(candidates.items||[]);
@@ -498,7 +518,7 @@ function App(){
         </section>
       </aside>
       <article>
-        <section className="panel mapSection"><div className="panelhead"><div><h2>Mapa de operaciones</h2><p>OpenStreetMap · puntos seleccionados · recorridos</p></div><span className="count">Lima, Perú</span></div><MapPanel orders={orders} depot={depot} centerLabel={centerName.trim()||"Centro de distribución"} preview={preview} savedRoute={savedRoute} chosen={form.latitude===null?null:{...form,label:form.address_label}}/></section>
+        <section className="panel mapSection"><div className="panelhead"><div><h2>Mapa de operaciones</h2><p>OpenStreetMap · puntos seleccionados · recorridos</p></div><span className="count">Lima, Perú</span></div><MapPanel orders={orders} depot={depot} centerLabel={centerName.trim()||"Centro de distribución"} preview={preview} savedRoute={savedRoute} gps={gpsPosition} chosen={form.latitude===null?null:{...form,label:form.address_label}}/></section>
         <section className="panel results"><div className="panelhead"><h2>03 · Comparación</h2><span className="count">{preview?"ESTIMADO":"PENDIENTE DE CÁLCULO"}</span></div>
           {preview?<><div className="metrics">
             <div className="metric"><small>Orden original</small><strong>{mins(preview.baseline_seconds)}</strong><span>{km(preview.baseline_meters)}</span></div>
@@ -509,6 +529,12 @@ function App(){
         {savedRoute&&<section className="panel results">
           <div className="panelhead"><h2>05 · Ruta persistida</h2><div><span className="count">{savedRoute.status}</span> <button className="outline" disabled={!user||busy} onClick={()=>run(()=>showSavedRoute(savedRoute.id))}>Actualizar estado</button></div></div>
           <p><strong>ID:</strong> {savedRoute.id}</p>
+          {savedRoute.status==="ACTIVE"&&<div className="gps-operator">
+            <button type="button" className="outline" disabled={!user||busy} onClick={loadGps}>📍 Consultar GPS del repartidor</button>
+            {gpsNotice&&<p role="status">{gpsNotice}</p>}
+            {gpsPosition&&<p><strong>{gpsPosition.status}</strong> · {gpsPosition.latitude.toFixed(5)}, {gpsPosition.longitude.toFixed(5)} ·
+              ±{Math.round(gpsPosition.accuracy_m)} m · Capturada {new Date(gpsPosition.captured_at).toLocaleString("es-PE")}</p>}
+          </div>}
           {savedRoute.distribution_center_id&&<p><strong>Centro de distribución:</strong> {savedRoute.distribution_center_name||savedRoute.distribution_center_id} · {savedRoute.distribution_center_id.slice(0,8)}</p>}
           <div className="metrics">
             <div className="metric"><small>Orden original</small><strong>{mins(savedRoute.baseline_seconds)}</strong><span>{km(savedRoute.baseline_meters)}</span></div>
