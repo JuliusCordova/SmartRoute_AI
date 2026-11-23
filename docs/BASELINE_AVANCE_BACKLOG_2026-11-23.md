@@ -1,4 +1,7 @@
 # SmartRoute AI — Línea base de avance, reconciliación y secuencia de ingeniería
+
+> **ADENDA DE ALCANCE 23/11/2026 — PREVALECE SOBRE EL BACKLOG HISTÓRICO DE ESTA PÁGINA.** El responsable ha excluido deshacer entrega, semáforo de puntualidad, modo sin conexión US-013/014 y función de exportación del piloto. **Se mantiene el piloto comparativo**, seguimiento simplificado US-016, indicadores US-011, y Gemini US-012 sigue pendiente. La cifra **45,2/71 = 63,7 %** es un corte del *alcance anterior* y **no representa el nuevo porcentaje** hasta dividir los 5 puntos de US-015 entre piloto (conservado) y exportación (eliminada). Consultar [decisión CR-2026-11-23-01](decisions/CR-2026-11-23-01_RECORTE_ALCANCE_MVP.md). Esta adenda rectifica especialmente las secciones 2 y 5 y sus tablas históricas, sin borrar el registro original.
+
 **Corte:** 23/11/2026 (America/Lima) · **Carácter:** auditoría de métricas y backlog; no modifica código ni datos del piloto.
 
 ## 1. Tres indicadores diferentes — no sustituibles
