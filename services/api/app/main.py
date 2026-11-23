@@ -447,6 +447,12 @@ from .public_tracking import (
 
 @lru_cache(maxsize=1)
 def get_public_tracking_repository() -> FirestorePublicTrackingRepository:
+    # Deny disabled feature before any Firestore client initialization or network I/O.
+    from .public_tracking import require_enabled
+    try:
+        require_enabled()
+    except TrackingDisabled:
+        raise HTTPException(404, "Not found") from None
     return FirestorePublicTrackingRepository()
 
 
