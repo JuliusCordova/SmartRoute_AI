@@ -50,10 +50,10 @@ import pe.edu.upn.smartroute.driver.ui.components.StatusChip
 import pe.edu.upn.smartroute.driver.ui.components.displayRouteId
 import pe.edu.upn.smartroute.driver.ui.components.label
 import java.util.Locale
-import pe.edu.upn.smartroute.driver.di.AppConfig
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import com.google.firebase.auth.FirebaseAuth
+import pe.edu.upn.smartroute.driver.di.AppConfig
 import pe.edu.upn.smartroute.driver.di.AppConfig
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
