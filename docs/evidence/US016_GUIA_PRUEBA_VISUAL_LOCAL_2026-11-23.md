@@ -101,7 +101,8 @@ Al abrir el seguimiento por la URL de vista previa `https://8081-...cloudshell.d
 - **PASS:** captura de Chrome Windows en `127.0.0.1:8081` con pedido `SR-DEMO-A` mostrado como `Pedido en camino`, texto de ETA no disponible y aviso de privacidad. Captura compartida en la conversación del 23/11/2026; **la imagen no está subida como binario a este repositorio**.
 - **PASS previo:** `curl` con pedido sintético A => 200 + JSON esperado.
 - **PASS:** captura B en Chrome Windows en `127.0.0.1:8081`, con `SR-DEMO-B`, mensaje `Entrega no completada`, sin ETA ni GPS ni datos del pedido A. Captura compartida en conversación del 23/11/2026; **no subida como binario a GitHub**.
-- **PENDIENTE:** estados de error con token de formato válido pero desconocido, vista móvil con pedido válido, comparación final con prototipo y E2E con API/gateway reales en entorno aislado.
+- **PASS:** token de formato válido pero desconocido (`C` repetido 43 veces) mostró «Seguimiento no disponible» y mensaje para solicitar nuevo enlace; sin datos de pedido. Captura aportada en conversación del 23/11/2026, aún no subida como imagen binaria al repositorio.
+- **PENDIENTE:** vista móvil con pedido válido, comparación final con prototipo y E2E con API/gateway reales en entorno aislado.
 - **No confundir:** el simulador acepta claves ficticias `A*43` y `B*43`, por lo que no valida generación criptográfica, expiración o control de acceso real. Eso requiere las pruebas del backend/emulador y seguridad perimetral.
 - Mantener PR #81 (frontend), #82 (backend) y #83 (evidencia) abiertos y sin activar el seguimiento público hasta QA integral.
 
