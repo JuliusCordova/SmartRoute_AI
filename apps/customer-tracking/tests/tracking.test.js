@@ -14,3 +14,26 @@ test("does not invent ETA or accept unknown states",()=>{
  assert.equal(customerView({order_reference:"SR-1",status:"IN_TRANSIT",eta_minutes:null}).eta,null);
  assert.throws(()=>customerView({order_reference:"SR-1",status:"UNKNOWN"}));
 });
+
+test("rechaza referencias incorrectas y payloads malformados",()=>{
+ for(const payload of [null,[],{}, {order_reference:"SR 123",status:"PENDING"},{order_reference:"SR-1",status:"__proto__"},{order_reference:"SR-1",status:"constructor"}]){
+   assert.throws(()=>customerView(payload));
+ }
+});
+test("protege contra ETA inválida y no la calcula para pedidos finalizados",()=>{
+ for(const value of [-1,Infinity,NaN,"17",1441]) {
+   assert.equal(customerView({order_reference:"SR-1",status:"IN_TRANSIT",eta_minutes:value}).eta,null);
+ }
+ for(const status of ["PENDING","ASSIGNED","DELIVERED","FAILED"]) {
+   assert.equal(customerView({order_reference:"SR-1",status,eta_minutes:15}).eta,null);
+ }
+});
+test("token de longitud límite y caracteres permitidos",()=>{
+ const min="a".repeat(32),max="b".repeat(256);
+ assert.equal(tokenFromPath("/t/"+min),min);
+ assert.equal(tokenFromPath("/t/"+max),max);
+ assert.equal(tokenFromPath("/t/"+min+"/"),min);
+ assert.equal(tokenFromPath("/t/"+"c".repeat(257)),null);
+ assert.equal(tokenFromPath("/t/"+"d".repeat(31)),null);
+ assert.equal(tokenFromPath("/t/"+min+"?next=other"),null);
+});
