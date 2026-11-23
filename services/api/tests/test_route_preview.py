@@ -51,3 +51,11 @@ def test_optimized_uses_road_matrix(monkeypatch):
     assert result.data_origin == "estimated"
     assert result.optimized_seconds <= result.baseline_seconds
     assert result.route_geometry is None
+    # DEF-01: the improvement is based on exact seconds, not rounded display minutes.
+    # Baseline D→A→B→D: 30+100+20=150 seconds.
+    # Optimized D→B→A→D: 20+5+30=55 seconds.
+    assert result.baseline_seconds == 150
+    assert result.optimized_seconds == 55
+    assert result.improvement_pct == 63.33
+    assert result.ordered_order_ids == ["B", "A"]
+
