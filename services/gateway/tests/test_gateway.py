@@ -188,3 +188,32 @@ def test_qa_bca4df3_backend_allowlist_exact_and_denies_unapproved_variants():
                 backend_url()
     assert PRIVATE_API_URL in APPROVED_API_URLS
     assert not permitted_endpoint("GET", "/api/v1/private-admin")
+
+
+def test_sec01_revoked_firebase_token_returns_401_without_backend_call():
+    """SEC-01: revoked tokens never reach the private API or mint an IAM token."""
+    from firebase_admin import auth
+    with patch.dict(os.environ, ENV), \
+         patch("app.main.firebase_app", return_value=object()), \
+         patch("app.main.auth.verify_id_token", side_effect=auth.RevokedIdTokenError("revoked")) as verify, \
+         patch("app.main.private_id_token") as mint:
+        response = client.get("/api/v1/orders", headers={"Authorization":"Bearer revoked-fixture"})
+    assert response.status_code == 401
+    verify.assert_called_once()
+    assert verify.call_args.kwargs["check_revoked"] is True
+    mint.assert_not_called()
+
+
+def test_sec01_gateway_valid_token_explicitly_checks_revocation():
+    """SEC-01: even valid claims must be checked for server-side revocation."""
+    with patch.dict(os.environ, ENV), \
+         patch("app.main.firebase_app", return_value=object()), \
+         patch("app.main.auth.verify_id_token", return_value={"uid":"qa-synthetic-driver"}) as verify, \
+         patch("app.main.private_id_token", return_value="test-iam"), \
+         patch("app.main.httpx.AsyncClient.request") as downstream:
+        import httpx
+        downstream.return_value = httpx.Response(200, json={"items":[]})
+        response = client.get("/api/v1/orders", headers={"Authorization":"Bearer valid-fixture"})
+    assert response.status_code == 200
+    verify.assert_called_once()
+    assert verify.call_args.kwargs["check_revoked"] is True
