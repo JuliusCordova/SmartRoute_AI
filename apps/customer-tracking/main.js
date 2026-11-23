@@ -5,14 +5,14 @@ function message(title,description){
   root.replaceChildren(el("h2",title),el("p",description,"hint"));
 }
 async function init(){
-  const token=tokenFromPath(window.location.pathname);
+  const token=tokenFromPath(window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.pathname);
   if(!token){message("Enlace inválido","Revisa el enlace original de seguimiento.");return;}
   const controller=new AbortController(), timeout=setTimeout(()=>controller.abort(),10000);
   try{
     // Este endpoint no existe todavía: debe implementarse en el backend con validación del token y respuesta acotada.
-    const resp=await fetch("/api/v1/public/tracking/"+encodeURIComponent(token),{
-      method:"GET",cache:"no-store",credentials:"omit",referrerPolicy:"no-referrer",
-      headers:{"Accept":"application/json"},signal:controller.signal
+    const resp=await fetch("/api/v1/public/tracking",{
+      method:"POST",cache:"no-store",credentials:"omit",referrerPolicy:"no-referrer",
+      headers:{"Accept":"application/json","Content-Type":"application/json"},body:JSON.stringify({token}),signal:controller.signal
     });
     if(!resp.ok){message("Seguimiento no disponible","El enlace puede haber caducado o el servicio no está habilitado. Solicita uno nuevo al operador.");return;}
     const view=customerView(await resp.json());
