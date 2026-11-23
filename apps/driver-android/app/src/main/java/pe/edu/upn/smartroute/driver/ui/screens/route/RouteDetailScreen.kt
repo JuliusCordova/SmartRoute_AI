@@ -129,8 +129,20 @@ fun RouteDetailScreen(
                 is UiState.Error -> MessageView(s.message, "Reintentar", viewModel::load)
                 is UiState.NotFound -> MessageView(s.message, "Volver", onBack)
                 is UiState.Success -> {
-                    if (!viewModel.isDemoData && viewModel.canMutateRoute(s.data.id) && s.data.status == RouteStatus.PLANNED) {
-                        if (s.data.version != null) {
+                    // Mostrar el estado de preparación, sin relajar ni una validación de escritura.
+                    // El botón permanece protegido también en RouteDetailViewModel y ApiRouteRepository.
+                    if (s.data.status == RouteStatus.PLANNED) {
+                        val writeAllowed = viewModel.canMutateRoute(s.data.id)
+                        val reason = when {
+                            viewModel.isDemoData ->
+                                "Modo demostración: no se pueden iniciar rutas reales."
+                            !writeAllowed ->
+                                "La sesión o esta compilación no está autorizada para iniciar esta ruta QA."
+                            s.data.version == null ->
+                                "El Gateway no entregó la versión de la ruta; inicio bloqueado."
+                            else -> null
+                        }
+                        if (reason == null) {
                             Button(
                                 onClick = { confirmStart = true },
                                 enabled = !starting,
@@ -138,8 +150,8 @@ fun RouteDetailScreen(
                             ) { Text(if (starting) "Iniciando recorrido..." else "Iniciar recorrido") }
                         } else {
                             Text(
-                                "Inicio no disponible: el gateway debe publicar la versión de la ruta.",
-                                modifier = Modifier.padding(16.dp),
+                                "Inicio bloqueado: $reason",
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                                 color = MaterialTheme.colorScheme.error,
                             )
                         }
