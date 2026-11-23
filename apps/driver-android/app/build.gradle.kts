@@ -9,9 +9,6 @@ if (file("google-services.json").exists()) {
     apply(plugin = libs.plugins.google.services.get().pluginId)
 }
 
-// Opt-in for QA writes only in debug. Release always remains read-only.
-val qaWriteOptIn = providers.gradleProperty("smartrouteQaWrite").orNull == "true"
-
 android {
     namespace = "pe.edu.upn.smartroute.driver"
     compileSdk {
@@ -32,7 +29,7 @@ android {
 
     buildTypes {
         getByName("debug") {
-            buildConfigField("boolean", "QA_WRITE_TEST_ENABLED", qaWriteOptIn.toString())
+            buildConfigField("boolean", "QA_WRITE_TEST_ENABLED", "true")
         }
         release {
             buildConfigField("boolean", "QA_WRITE_TEST_ENABLED", "false")
