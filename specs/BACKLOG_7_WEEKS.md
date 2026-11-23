@@ -1,3 +1,5 @@
+> **CAMBIO DE ALCANCE APROBADO · 23/11/2026 (CR-2026-11-23-01).** Quedan fuera del MVP: **deshacer una entrega**, **semáforo visual de puntualidad**, **US-013/014 (sin conexión y cola local)** y **funcionalidad de exportación de resultados/dataset**. **El piloto comparativo permanece obligatorio** como validación del objetivo de eficiencia; US-015 se divide conceptualmente entre PILOTO (conservado) y EXPORTACIÓN (excluida), pendiente de reestimación. **US-011** conserva KPI de tiempo, distancia, efectividad y origen estimado/observado, sin semáforo; **US-016** conserva seguimiento de estado y ETA sin semáforo. Los requisitos y filas históricos de esta especificación se interpretan sujetos a esta adenda; no son trabajo comprometido. [Acta de cambio](../docs/decisions/CR-2026-11-23-01_RECORTE_ALCANCE_MVP.md).
+
 # Backlog de ejecución PA-SDD — siete semanas (Firestore Standard)
 **Fuente operativa:** [Plan maestro de desarrollo](../docs/PLAN_DESARROLLO_7_SEMANAS.md). Este backlog reemplaza el cronograma anterior que mencionaba PostgreSQL. **No hay funcionalidades P0 desplegadas aún.**
 
