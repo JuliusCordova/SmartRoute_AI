@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {filterOrders,filterRoutes,summarizeOperations,fetchPaged} from "../src/operations.js";
+import {filterOrders,filterRoutes,summarizeOperations,fetchPaged,projectRouteIndicators} from "../src/operations.js";
 
 const orders=[
   {id:"a",address_label:"Av. Arequipa",status:"PENDING"},
@@ -63,4 +63,33 @@ test("Centro de distribución: envía coordenadas seleccionadas, sin alterar ori
   const selected={label:"Centro QA",latitude:-12.1,longitude:-77.03,precision:"precise"};
   assert.deepEqual(distributionCenterPayload(selected),{latitude:-12.1,longitude:-77.03});
   assert.throws(()=>distributionCenterPayload(null),/no seleccionado/);
+});
+
+test("US-011: métricas de tiempo y distancia conservan valores exactos y origen estimado",()=>{
+  const result=projectRouteIndicators([{
+    id:"r-proto",status:"COMPLETED",order_ids:["a","b"],
+    baseline_seconds:1927,optimized_seconds:1503,
+    baseline_meters:18550,optimized_meters:15260,
+  }]);
+  assert.equal(result.length,1);
+  assert.equal(result[0].stopCount,2);
+  assert.equal(result[0].baselineSeconds,1927);
+  assert.equal(result[0].optimizedSeconds,1503);
+  assert.ok(Math.abs(result[0].timeImprovement - 100*424/1927)<1e-9);
+  assert.ok(Math.abs(result[0].distanceImprovement - 100*3290/18550)<1e-9);
+  assert.equal(result[0].dataOrigin,"estimated");
+  assert.equal(result[0].observedDuration,null);
+});
+test("US-011: no inventa KPI cuando no hay matriz válida",()=>{
+  const result=projectRouteIndicators([{id:"incomplete",status:"ACTIVE",order_ids:[],baseline_seconds:0,optimized_seconds:0,baseline_meters:null,optimized_meters:null}])[0];
+  assert.equal(result.timeImprovement,null);
+  assert.equal(result.distanceImprovement,null);
+  assert.equal(result.baselineSeconds,null);
+  assert.equal(result.observedDuration,null);
+});
+test("US-011: no modifica el arreglo de rutas recibido",()=>{
+  const before=Object.freeze({id:"test",status:"ACTIVE",order_ids:Object.freeze(["a"]),baseline_seconds:90,optimized_seconds:100,baseline_meters:100,optimized_meters:110});
+  const rows=Object.freeze([before]);
+  assert.equal(projectRouteIndicators(rows)[0].timeImprovement, -11.11111111111111);
+  assert.deepEqual(rows,[before]);
 });

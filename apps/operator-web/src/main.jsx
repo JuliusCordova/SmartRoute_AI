@@ -5,7 +5,7 @@ import {getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOu
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./style.css";
-import {ORDER_STATES,ROUTE_STATES,stateLabel,filterOrders,filterRoutes,summarizeOperations,fetchPaged} from "./operations.js";
+import {ORDER_STATES,ROUTE_STATES,stateLabel,filterOrders,filterRoutes,summarizeOperations,fetchPaged,projectRouteIndicators} from "./operations.js";
 import {distributionCenterReady,distributionCenterPayload} from "./distributionCenter.js";
 
 const cfg = window.__SMARTROUTE_CONFIG__ || {};
@@ -101,6 +101,7 @@ function MapPanel({orders,depot,preview,chosen,savedRoute,centerLabel,gps}){
 function ExecutiveDashboard({orders,routes,coverage,refresh,busy,user}) {
   const [state,setState]=useState("ALL");
   const scope=filterRoutes(routes,state), k=summarizeOperations(orders,scope);
+  const indicators=projectRouteIndicators(scope).slice(0,8);
   const orderStates=["PENDING","ASSIGNED","IN_TRANSIT","DELIVERED","FAILED"];
   const shades=["#ffc75c","#6daefa","#9b88fd","#36d9a8","#ff7d91"];
   const ratio=n=>k.orderCount?((100*n/k.orderCount).toFixed(2)+"%"):"0%";
@@ -139,6 +140,29 @@ function ExecutiveDashboard({orders,routes,coverage,refresh,busy,user}) {
         <div className="exec-note">{k.resolved} pedidos resueltos · {k.delivered} entregados · {k.failed} fallidos.</div>
       </div>
     </div>
+    <section className="operator-indicators" aria-label="US-011 Indicadores de rutas y evidencia">
+      <div className="operator-indicators-head">
+        <div><span className="eyebrow">US-011 · MÉTRICAS VERIFICABLES</span>
+          <h2>Rendimiento de las rutas</h2>
+          <p>Comparación de tiempo y distancia para el mismo conjunto de paradas. Son <strong>estimaciones de matriz vial</strong>, no desplazamientos observados.</p></div>
+        <span className="operator-scope">{indicators.length} de {scope.length} rutas visibles</span>
+      </div>
+      {indicators.length ? <div className="operator-table-scroll">
+        <table className="operator-metrics-table">
+          <thead><tr><th scope="col">Ruta / estado</th><th scope="col">Paradas</th><th scope="col">Tiempo base → optimizado</th><th scope="col">Mejora tiempo</th><th scope="col">Distancia base → optimizada</th><th scope="col">Mejora distancia</th><th scope="col">Origen</th></tr></thead>
+          <tbody>{indicators.map(item=><tr key={item.id}>
+            <td><strong title={item.id}>{item.id.slice(0,8)}…</strong><small>{stateLabel[item.status]||item.status}</small></td>
+            <td>{item.stopCount}</td>
+            <td>{item.baselineSeconds===null?"Sin dato":`${mins(item.baselineSeconds)} → ${mins(item.optimizedSeconds)}`}<small>{item.baselineSeconds===null?"—":`${item.baselineSeconds} → ${item.optimizedSeconds} s exactos`}</small></td>
+            <td className="operator-highlight">{item.timeImprovement===null?"—":item.timeImprovement.toFixed(2)+" %"}</td>
+            <td>{item.baselineMeters===null?"Sin dato":`${km(item.baselineMeters)} → ${km(item.optimizedMeters)}`}</td>
+            <td className="operator-highlight">{item.distanceImprovement===null?"—":item.distanceImprovement.toFixed(2)+" %"}</td>
+            <td><span className="estimate-label">ESTIMADO</span></td>
+          </tr>)}</tbody>
+        </table>
+      </div> : <p className="operator-no-data">Aún no hay rutas consultadas para este filtro. Actualiza el tablero para ver las métricas disponibles.</p>}
+      <p className="operator-indicators-foot">No se dispone aquí de tiempos observados ni de medición de puntualidad. No se calcula semáforo, no se exportan resultados y los porcentajes no prueban ahorro real. {coverage.routesTruncated?"La consulta tiene páginas pendientes: la cobertura es parcial.":""}</p>
+    </section>
     <div className="executive-footer"><span>{coverage.ordersTruncated||coverage.routesTruncated?"ATENCIÓN: datos parciales por límite de páginas":"Vista calculada sobre todas las páginas recuperadas"}</span>
       <span>Sin GPS observado · sin puntualidad medida · ahorros estimados</span></div>
   </section>;
