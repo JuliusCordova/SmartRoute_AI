@@ -190,3 +190,15 @@ Para validar las pantallas mientras backend publica los endpoints, arrancar **si
 5. Confirmar finalización; queda `COMPLETED` **solo en memoria del emulador**, sin escribir en GCP. El proceso reiniciado restablece los datos de demostración.
 
 **US-012 no se demuestra con esta ruta sintética, que comienza en ACTIVE**; su flujo real está preparado con el conductor QA, pendiente de validación. La app mantiene el aviso permanente de datos sintéticos. El flag `ENABLE_DELIVERY_MUTATIONS=false` afecta solamente a la modalidad conectada al backend.
+
+## Prueba Android aislada — nueva ruta QA (23/11/2026)
+
+El botón Iniciar recorrido requiere AppConfig.canMutateQaRoute, estado PLANNED y versión de ruta. Ruta de prueba: fb413b71-c963-570f-be61-500e9eadfb7b; conductor QA: zMuwbYHLfST2QNdNkfosoCbUZ003.
+
+- Debug apunta al Gateway QA etiquetado qa-90681ae; release mantiene el endpoint anterior.
+- Un build debug normal sigue sin permisos de escritura. No usar el opt-in hasta verificar la restricción en Backend.
+- Para una prueba local deliberada, tras validar el Backend, compilar con: .\gradlew.bat :app:assembleDebug -PsmartrouteQaWrite=true
+- Release compila QA_WRITE_TEST_ENABLED=false con independencia de los argumentos Gradle.
+- En la revisión Backend QA (0 % tráfico principal), comprobar SMARTROUTE_QA_WRITE_GUARD=true, SMARTROUTE_QA_DRIVER_UID exacto, SMARTROUTE_QA_ROUTE_ID exacto, APP_ENV=staging, FIRESTORE_DATABASE_ID=smartroute.
+- No tocar la revisión con tráfico normal, otras bases Firestore, tokens ni google-services.json.
+- La geolocalización del emulador es simulada, no medición real de recorrido.
