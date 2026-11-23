@@ -196,9 +196,10 @@ Para validar las pantallas mientras backend publica los endpoints, arrancar **si
 El botón Iniciar recorrido requiere AppConfig.canMutateQaRoute, estado PLANNED y versión de ruta. Ruta de prueba: fb413b71-c963-570f-be61-500e9eadfb7b; conductor QA: zMuwbYHLfST2QNdNkfosoCbUZ003.
 
 - Debug apunta al Gateway QA etiquetado qa-90681ae; release mantiene el endpoint anterior.
-- Un build debug normal sigue sin permisos de escritura. No usar el opt-in hasta verificar la restricción en Backend.
-- Para una prueba local deliberada, tras validar el Backend, compilar con: .\gradlew.bat :app:assembleDebug -PsmartrouteQaWrite=true
-- Release compila QA_WRITE_TEST_ENABLED=false con independencia de los argumentos Gradle.
+- Un build debug habilita el flujo QA **solo para el UID de conductor autorizado**; ya no requiere una propiedad Gradle adicional. El Backend es el límite de seguridad efectivo.
+- Compilar localmente con: .\gradlew.bat :app:testDebugUnitTest :app:assembleDebug
+- Release mantiene QA_WRITE_TEST_ENABLED=false; ningún usuario obtiene escrituras QA en release.
+- El cliente no restringe a un identificador de ruta; **el guard de Backend QA sí conserva el control exacto UID+ruta**. Esto no permite mutar otras rutas desde el servidor.
 - En la revisión Backend QA (0 % tráfico principal), comprobar SMARTROUTE_QA_WRITE_GUARD=true, SMARTROUTE_QA_DRIVER_UID exacto, SMARTROUTE_QA_ROUTE_ID exacto, APP_ENV=staging, FIRESTORE_DATABASE_ID=smartroute.
 - No tocar la revisión con tráfico normal, otras bases Firestore, tokens ni google-services.json.
 - La geolocalización del emulador es simulada, no medición real de recorrido.
