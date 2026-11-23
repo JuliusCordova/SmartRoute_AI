@@ -13,7 +13,10 @@ import pe.edu.upn.smartroute.driver.ui.auth.CredentialManagerSource
 
 /** Configuración pública (no secreta). Las claves de mapas y del backend nunca van en la app. */
 object AppConfig {
-    const val GATEWAY_BASE_URL = "https://us014-gateway-test---smartroute-gateway-staging-mkqutd4koq-uc.a.run.app"
+    // Debug connects to isolated QA Gateway; release retains original endpoint.
+    val GATEWAY_BASE_URL: String =
+        if (BuildConfig.DEBUG) "https://qa-90681ae---smartroute-gateway-staging-mkqutd4koq-uc.a.run.app"
+        else "https://us014-gateway-test---smartroute-gateway-staging-mkqutd4koq-uc.a.run.app"
 
     /** Pon true para forzar el modo demostración aunque Firebase esté configurado. */
     const val FORCE_DEMO = false
@@ -23,9 +26,9 @@ object AppConfig {
 
     // Armado independiente para pruebas manuales; desactivado en el repositorio.
     // Un build RELEASE jamás habilita mutaciones QA.
-    const val ENABLE_QA_WRITE_TEST = false
+    val ENABLE_QA_WRITE_TEST: Boolean = BuildConfig.DEBUG && BuildConfig.QA_WRITE_TEST_ENABLED
     private const val QA_UID = "zMuwbYHLfST2QNdNkfosoCbUZ003"
-    private const val QA_ROUTE_ID = "21e3de4b-4002-5870-bc4e-8eafb2826219"
+    private const val QA_ROUTE_ID = "fb413b71-c963-570f-be61-500e9eadfb7b"
 
     fun canMutateQaRoute(uid: String?, routeId: String): Boolean =
         pe.edu.upn.smartroute.driver.BuildConfig.DEBUG &&
