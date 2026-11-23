@@ -7,6 +7,7 @@ import "leaflet/dist/leaflet.css";
 import "./style.css";
 import {ORDER_STATES,ROUTE_STATES,stateLabel,filterOrders,filterRoutes,summarizeOperations,fetchPaged,projectRouteIndicators} from "./operations.js";
 import {distributionCenterReady,distributionCenterPayload} from "./distributionCenter.js";
+import {projectOrderTracking,trackingSummary} from "./tracking.js";
 
 const cfg = window.__SMARTROUTE_CONFIG__ || {};
 const configured = Boolean(cfg.firebase?.apiKey && cfg.firebase?.appId && cfg.gatewayUrl);
@@ -570,6 +571,35 @@ function App(){
           {savedRoute.detail_warnings?.length>0&&<p className="fineprint">{savedRoute.detail_warnings.join(". ")}</p>}
           <p className="fineprint">Origen: {savedRoute.data_origin}. Minutos redondeados para lectura; porcentaje sobre segundos exactos. {savedRoute.driver_id?"Conductor asignado: "+savedRoute.driver_id+" · "+(savedRoute.status==="ACTIVE"?"recorrido iniciado.":savedRoute.status==="COMPLETED"?"recorrido finalizado.":"pendiente de activación."):"Esta ruta aún no está asignada a un conductor."}</p>
           {savedRoute.started_at&&<p className="fineprint">Inicio registrado: {new Date(savedRoute.started_at).toLocaleString("es-PE")} · versión {savedRoute.version}. Las métricas mostradas siguen siendo estimaciones, no tiempos observados.</p>}
+        </section>}
+        {savedRoute&&<section className="panel tracking-panel" aria-label="US-016 Seguimiento de pedidos">
+          <div className="panelhead"><div><span className="tracking-eyebrow">US-016 · SEGUIMIENTO OPERATIVO</span><h2>Estado de entregas de la ruta</h2></div>
+            <button type="button" className="outline" disabled={!user||busy} onClick={()=>run(async()=>{
+              const tkn=await token();
+              const [detail,orderPage]=await Promise.all([
+                api("/api/v1/optimized-routes/"+encodeURIComponent(savedRoute.id),"GET",tkn),getAllOrders(tkn)
+              ]);
+              setSavedRoute(detail);setOrders(orderPage.items.map(o=>({...o,checked:false})));
+              setCoverage(old=>({...old,ordersTruncated:orderPage.truncated}));
+              setStatus("Seguimiento actualizado desde Firestore."+ (orderPage.truncated?" Vista parcial.":""));
+            })}>Actualizar seguimiento</button></div>
+          {(()=>{
+            const items=projectOrderTracking(savedRoute,orders), summary=trackingSummary(items);
+            return <><div className="tracking-stats">
+              <div><strong>{summary.delivered}</strong><small>Entregados</small></div>
+              <div><strong>{summary.failed}</strong><small>No entregados</small></div>
+              <div><strong>{summary.unresolved}</strong><small>Sin resolver (consultados)</small></div>
+            </div>
+            {summary.partial&&<p className="tracking-warning" role="status">Hay {summary.total-summary.confirmed} pedidos sin datos en la consulta. Los indicadores son parciales.</p>}
+            <ol className="tracking-steps">{items.map(item=><li key={item.id}>
+              <span className="tracking-sequence" aria-hidden="true">{item.sequence}</span>
+              <div><strong>{item.address}</strong><small>Pedido {item.id.slice(0,8)} · {item.label}</small></div>
+              <span className="tracking-status">{item.label}</span>
+            </li>)}</ol>
+            {!items.length&&<p>Esta ruta no contiene pedidos consultables.</p>}
+            <p className="fineprint">Los estados reflejan el último dato consultado, no un historial de eventos. No se inventan fechas, ETA, tiempos reales ni enlaces públicos. Los pedidos solo son visibles para el operador autenticado.</p>
+            </>;
+          })()}
         </section>}
         {savedRoute&&<section className="panel results">
           <div className="panelhead"><h2>06 · Asignar conductor</h2><span className="count">{savedRoute.driver_id?"ASIGNADA":"PENDIENTE"}</span></div>
