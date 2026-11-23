@@ -33,6 +33,34 @@ export function summarizeOperations(orders, routes) {
     estimatedRoutes:eligible.length,
   };
 }
+/** US-011: estimates use exact seconds/meters from persisted route records.
+ * No GPS-derived duration, punctuality or savings are inferred.
+ */
+export function projectRouteIndicators(routes) {
+  return routes.map(route => {
+    const baselineSeconds = route.baseline_seconds;
+    const optimizedSeconds = route.optimized_seconds;
+    const baselineMeters = route.baseline_meters;
+    const optimizedMeters = route.optimized_meters;
+    const validTimes = Number.isFinite(baselineSeconds) && Number.isFinite(optimizedSeconds)
+      && baselineSeconds > 0 && optimizedSeconds >= 0;
+    const validDistances = Number.isFinite(baselineMeters) && Number.isFinite(optimizedMeters)
+      && baselineMeters > 0 && optimizedMeters >= 0;
+    return {
+      id: route.id, status: route.status, stopCount: Array.isArray(route.order_ids) ? route.order_ids.length : 0,
+      baselineSeconds:validTimes ? baselineSeconds : null,
+      optimizedSeconds:validTimes ? optimizedSeconds : null,
+      baselineMeters:validDistances ? baselineMeters : null,
+      optimizedMeters:validDistances ? optimizedMeters : null,
+      timeImprovement:validTimes ? 100*(baselineSeconds-optimizedSeconds)/baselineSeconds : null,
+      distanceImprovement:validDistances ? 100*(baselineMeters-optimizedMeters)/baselineMeters : null,
+      dataOrigin:"estimated",
+      // No observed driving times are present in the read-only route list.
+      observedDuration:null,
+    };
+  });
+}
+
 /** Pagination is explicit so client-side filters never masquerade as server-side aggregate counts. */
 export async function fetchPaged(fetchPage,{limit=50,maxPages=10}={}) {
   const items=[];
