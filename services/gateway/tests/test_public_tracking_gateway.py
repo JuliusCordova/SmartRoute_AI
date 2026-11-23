@@ -36,7 +36,10 @@ def test_only_public_tracking_skips_firebase():
         assert observed["headers"]["X-Serverless-Authorization"]=="Bearer iam"
         assert response.headers["cache-control"]=="no-store"
         firebase.assert_not_called()
+        from fastapi import HTTPException
+        firebase.side_effect = HTTPException(401, "Firebase required")
         assert client.get("/api/v1/orders").status_code==401
+        firebase.assert_called_once()
 
 def test_unknown_origin_or_method_rejected_before_iam():
     with patch.dict(os.environ,{**ENV,"SMARTROUTE_PUBLIC_TRACKING_ENABLED":"true"},clear=True), \
