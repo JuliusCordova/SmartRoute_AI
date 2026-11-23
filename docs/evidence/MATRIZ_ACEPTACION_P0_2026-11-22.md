@@ -66,3 +66,14 @@ Capturas **E01–E12** proporcionadas por el usuario; están incrustadas en el a
 2. No declarar GPS (US-008) ni piloto/exportación (US-015) hasta pruebas reproducibles con dataset real o protocolo académico aceptado.
 3. Relacionar resultados con cada control de rúbrica `EF-C13-01`, `INF-05` y `MED-02` **sin inferir aceptación formal**.
 4. Revisar privacidad y adjuntar las 12 capturas del anexo en la entrega formal; CI, negativos RBAC, seguridad y costos permanecen con su propio gate.
+
+
+## Adenda de validación posterior — 22/11/2026 (nuevo flujo QA)
+
+El balance histórico de 8 aceptadas / 2 parciales / 2 pendientes corresponde al **corte anterior**. Las nuevas capturas aportan evidencia para **US-V1-004** y ya **no debe describirse como filtro sin demostrar**: se comprobó `No entregados` = 2/18 (`FAILED`), `Entregados` = 10/18 (`DELIVERED`) y `Todos` = 18/18. **US-V1-004 pasa a aceptación funcional QA limitada a estos filtros.** La búsqueda combinada por dirección/ID y pruebas negativas continúan pendientes. Bajo la misma regla de valoración, el recuento P0 actualizado orientativo es **9 aceptadas, 1 parcial (US-V1-011), 2 pendientes (US-V1-008 y US-V1-015)**; no implica aprobación completa de los criterios de la historia ni de la rúbrica.
+
+El Dashboard WOW muestra KPIs poblados (18 pedidos, 3 rutas, 83,3 % efectividad, 15,0 % mejora **estimada**) y filtra rutas finalizadas (2 rutas, 13,6 % mejora **estimada**). Puntualidad y tiempos observados siguen sin medición; por eso US-V1-011 continúa **parcial**.
+
+Adicionalmente se validó **US-017** (fuera de estas 12 P0 baseline): catálogo CRUD de tres sedes, búsqueda, edición, desactivación lógica, selección de `SEDE-SUR` y persistencia de referencia a sede en ruta `fb413b71-c963-570f-be61-500e9eadfb7b`; optimización de cinco pedidos (71→61 min, 48,43→41,68 km, 14,59 % **estimado**) y asignación posterior a conductor QA, manteniendo estado `PLANNED`.
+
+**Evidencia detallada y límites:** [corte QA WOW, sedes y conductor](CORTE_QA_WOW_SEDES_RUTA_CONDUCTOR_2026-11-22.md). Capturas originales aportadas en conversación, **no** versionadas como PNG en GitHub. **Android de esta nueva ruta y GPS aún pendientes.**
