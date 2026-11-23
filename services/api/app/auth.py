@@ -28,7 +28,7 @@ def current_user(credentials: HTTPAuthorizationCredentials | None = Security(bea
     try:
         from firebase_admin import auth
         from .firestore_config import firestore_client
-        decoded = auth.verify_id_token(credentials.credentials, app=_firebase_app(), check_revoked=False)
+        decoded = auth.verify_id_token(credentials.credentials, app=_firebase_app(), check_revoked=True)
         uid = decoded.get("uid")
         if not uid or not isinstance(uid, str):
             raise ValueError("Firebase token missing UID")
@@ -41,7 +41,7 @@ def current_user(credentials: HTTPAuthorizationCredentials | None = Security(bea
         return UserContext(uid=uid, role=data["role"])
     except HTTPException:
         raise
-    except (ValueError, RuntimeError):
+    except (auth.InvalidIdTokenError, auth.UserDisabledError, ValueError, RuntimeError):
         raise HTTPException(status_code=401, detail="Invalid identity or auth configuration") from None
     except Exception:
         raise HTTPException(status_code=503, detail="Identity service unavailable") from None
