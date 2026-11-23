@@ -17,6 +17,14 @@ class AppConfigQaTest {
             AppConfig.canMutateQaRoute(qaUid, qaRoute))
     }
 
+    @Test fun QA_denial_reason_does_not_expose_firebase_uid() {
+        val reason = AppConfig.qaWriteBlockReason("other-test-uid", qaRoute)
+        org.junit.Assert.assertNotNull(reason)
+        org.junit.Assert.assertFalse(reason!!.contains("other-test-uid"))
+        org.junit.Assert.assertNotNull(AppConfig.qaWriteBlockReason(qaUid, "other-route"))
+        org.junit.Assert.assertNotNull(AppConfig.qaWriteBlockReason(null, qaRoute))
+    }
+
     @Test fun all_other_identities_and_routes_are_rejected_even_if_opted_in() {
         assertFalse(AppConfig.canMutateQaRoute(null, qaRoute))
         assertFalse(AppConfig.canMutateQaRoute("different-driver", qaRoute))
