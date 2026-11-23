@@ -1,5 +1,7 @@
 # SmartRoute AI — Lecciones aprendidas y registro de incidentes Android QA
 
+> **Seguimiento posterior del mismo día:** esta sección original documenta un corte **anterior a la resolución** del inicio Android. La [adenda final 23/11](#adenda-post-cierre-qa-23112026) actualiza las incidencias y confirma el cierre E2E 5/5; prevalece sobre los estados de «pendiente» anteriores, sin borrar el historial.
+
 **Fecha del corte:** 2026-11-23 · **Proyecto:** Capstone UPN · **Entorno:** Windows / Android Studio / emulador Pixel 9 Pro XL / Google Cloud Run staging · **Alcance:** pruebas operador → conductor Android → inicio de ruta → GPS.
 
 > Este registro distingue **hechos observados**, **hipótesis**, **correcciones comprobadas** y **pendientes**. No constituye una certificación end-to-end. No se han iniciado recorridos ni enviado posiciones GPS de esta ruta en las evidencias de la conversación. No confundir estimaciones del optimizador con desplazamientos medidos.
@@ -57,3 +59,38 @@
 - PR #72: https://github.com/JuliusCordova/SmartRoute_AI/pull/72 — diagnóstico granular, **pendiente de QA verde/merge al registrar este corte**.
 - QA Automation fallido (PR #72): https://github.com/JuliusCordova/SmartRoute_AI/actions/runs/45226880193 y https://github.com/JuliusCordova/SmartRoute_AI/actions/runs/45227459500; ambos evidenciaron importación duplicada.
 - Compilación Windows del usuario: `BUILD SUCCESSFUL` con `-PsmartrouteQaWrite=true`, `QA_WRITE_TEST_ENABLED = true`; instalación ADB `Success`.
+
+
+---
+
+## Adenda post-cierre QA 23/11/2026
+
+**Fuente de evidencia:** [Acta formal SQA E2E cinco paradas](ACTA_CORTE_FORMAL_SQA_E2E_2026-11-23.md). **Resultado:** ruta `fb413b71-c963-570f-be61-500e9eadfb7b` COMPLETED, 4 DELIVERED, 1 FAILED, 0 pendientes; cinco controles de Firestore del cierre **PASS**. La ruta sintética está **congelada**, sin más mutaciones.
+
+### Actualización a lecciones previas
+
+- **LL-05/06/07/09 — BOTÓN INICIAR, guard y compilación:** **resueltos funcionalmente** mediante el [PR #73](https://github.com/JuliusCordova/SmartRoute_AI/pull/73) integrado en `main` (`c309a59`): Android debug autoriza el UID QA sin bandera Gradle adicional, mientras **Backend mantiene el guard UID+ruta**, versión y propiedad. Build normal `assembleDebug` + ADB permitió mostrar «Iniciar recorrido» y completar la ruta. **No** interpretar esto como autorización de escritura de una build release o para cualquier usuario.
+- **LL-12/13 — Compilación CI:** PR #72 y PR #73 terminaron con workflows CI + QA Automation exitosos para las correcciones integradas. Deben revisarse las ejecuciones específicas para cifras de tests y comprobaciones negativas.
+- **LL-16 — GPS:** pasó de «no validado» a **TESTED QA con emulador**: permiso explícito; posición `-12.097368333333334, -77.02128`, 5 m; Firestore GPS HTTP 200 antes del cierre; eliminación HTTP 404 tras finalizar. **No** equivale a medición física real.
+- **LL-14 — Proceso:** los diagnósticos repetidos consumieron tiempo. La simplificación funcional y el motivo explícito de bloqueo resultaron más eficaces. Consolidar verificación en evidencia E2E y limitar comandos manuales.
+
+### Nuevas lecciones posteriores
+
+| ID | Error / hallazgo | Comprobación o causa | Acción preventiva / estado |
+| --- | --- | --- | --- |
+| LL-17 | Hash SHA-256 de APK generada difiere del binario extraído del emulador en comprobación anterior. | Hash local inicial `93A813...` y extraído `9D378...` no coinciden. La causa exacta **no quedó demostrada** y no debe atribuirse sin prueba a Android Studio ni al método de instalación. | Hacer inspección de identidad/versionName/versionCode de APK en investigaciones futuras; el flujo quedó **resuelto funcionalmente** con PR #73 y compilación normal. |
+| LL-18 | Primera transmisión GPS produjo «El servidor no confirmó la operación». | La ventana Location del emulador inicialmente estaba centrada en California, fuera de límites Backend Lima. No se obtuvo código HTTP exacto del primer intento. | Fijar una ubicación simulada de Lima vía Extended Controls → Single points → Set Location. Posterior HTTP 200 en Firestore valida la mitigación; **causalidad original probable, no demostrada**. |
+| LL-19 | Confusión entre guardar punto, pestaña Routes y aplicar ubicación del emulador. | «Save route as» y «Saved points» no transmiten necesariamente un GPS al dispositivo. | Guiar captura de posición y botón **Set Location**; un solo paso UI con captura de verificación. |
+| LL-20 | La app Google del sistema mostró «Google isn't responding». | Incidencia visible de proceso Google ajeno a SmartRoute; tras «Close app» SmartRoute continuó. | Mantener separadas incidencias de SO/emulador y errores de la app; **no bloqueante**. |
+| LL-21 | El reporte GPS se guardó con `data_origin=observed` aunque provenía de emulador. | Campo técnico representa dato de posición recibido; no certifica desplazamiento real. | En informe etiquetar **SIMULATED_QA** y recomendar trazabilidad de origen en diseño futuro; **deuda de gobernanza/datos**. |
+| LL-22 | El GPS se elimina cuando se completa una ruta y una lectura posterior devuelve 404. | **Comportamiento intencional:** en backend `complete` elimina `driver_last_locations`; verificado 404. | Leer evidencia de GPS **antes del cierre**, conservar solo prueba mínima saneada y no asumir pérdida de datos o falla. Privacidad conforme al contrato implementado. |
+| LL-23 | Resultado «100 %» puede inducir a pensar que el 100 % de pedidos se entregó. | Son **5/5 paradas resueltas**, con **4 entregadas y 1 fallida**. | Reportar separadamente 100 % resolución, 80 % éxito y 20 % fracaso; no reportar entregas físicas reales. |
+| LL-24 | Se comprobó directamente en REST el estado de pedidos 1 (DELIVERED) y 2 (FAILED), pero no de los otros tres. | Capturas de Android 3/5,4/5,5/5 y ruta final COMPLETED; faltan tres lecturas individuales independientes. | Transparencia: no atribuir GET REST que no ocurrió; para certificación más estricta se requiere export completo/snapshot auditado. |
+| LL-25 | Defecto UI de línea vertical en mapa/detalle y etiqueta genérica «Salida: Depósito». | Visuales de Android; el parser fija nombre de depósito. | Registrar como defectos no bloqueantes con referencia; corregir en un sprint posterior sin alterar retrospectivamente esta ejecución. |
+| LL-26 | Las rutas cerradas del 22 y 23/11 son distintas; métricas no comparables como A/B. | Ruta antigua de 6 paradas (5/1), ruta nueva de 5 (4/1), distintas condiciones. | Conservar actas separadas; no afirmar experimento controlado, ahorro real 20 % ni puntualidad observada. |
+
+### Veredicto de seguimiento
+
+**Aprobado** el caso funcional QA de cinco paradas en Android, Gateway, Backend y Firestore; el guard QA permaneció aislado. **Pendiente:** seguridad negativa, export auditado de evidencias, métricas observadas y evaluación de campo. **NO-GO producción** hasta controles adicionales.
+
+Actualización registrada como seguimiento con historial intacto; no confundir la adenda con los estados históricos que figuran en la tabla original.

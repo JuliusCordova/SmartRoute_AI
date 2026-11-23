@@ -1,5 +1,7 @@
 # SmartRoute AI — Matriz de aceptación de historias P0 (QA)
 
+> **ACTUALIZACIÓN 23/11/2026:** Esta matriz conserva el **baseline histórico del 22/11** (8 aceptadas/2 parciales/2 pendientes). Para el estado vigente de 12 historias P0 en QA revisar la **adenda fechada al final**: **10 aceptadas funcionalmente / 1 parcial / 1 pendiente**. No equivale a aceptación académica ni cobertura exhaustiva.
+
 **Corte:** 22/11/2026. **Baseline:** [SPEC](../../specs/SPEC.md), sección 4: `US-001…US-011` y `US-015` son P0 (12 historias). **Prefijo US-V1** evita confundir los alias de implementación `US-IMP-011..014`. **Ruta común de evidencia:** `aec305db-6e2f-5923-8b9f-87fcd9b37755`.
 
 **Veredicto QA conservador:** **8 aceptadas funcionalmente (66,7 %)**, **2 parciales (16,7 %)** y **2 pendientes (16,7 %)**. Este porcentaje **NO** es el cumplimiento global de rúbrica UPN, ni una tasa de cobertura exhaustiva de criterios P0. Una historia aprobada aquí significa **evidencia positiva de la función en QA**, no prueba completa de todas las restricciones, seguridad y pruebas negativas.
@@ -66,3 +68,33 @@ Capturas **E01–E12** proporcionadas por el usuario; están incrustadas en el a
 2. No declarar GPS (US-008) ni piloto/exportación (US-015) hasta pruebas reproducibles con dataset real o protocolo académico aceptado.
 3. Relacionar resultados con cada control de rúbrica `EF-C13-01`, `INF-05` y `MED-02` **sin inferir aceptación formal**.
 4. Revisar privacidad y adjuntar las 12 capturas del anexo en la entrega formal; CI, negativos RBAC, seguridad y costos permanecen con su propio gate.
+
+
+---
+
+## Adenda oficial — corte formal 23/11/2026 (TC-E2E-QA-20261123-02)
+
+**Nuevo universo del corte:** exactamente las mismas **12 historias P0**. Se mantiene el historial 22/11 sin sobrescribirlo. El segundo escenario QA es la ruta **`fb413b71-c963-570f-be61-500e9eadfb7b`** de **cinco paradas**, diferente de la ruta anterior de seis. Evidencia: [acta formal 23/11](ACTA_CORTE_FORMAL_SQA_E2E_2026-11-23.md). Los códigos E23 hacen referencia a evidencias narradas y ejecutadas en la sesión del usuario; **las capturas binarias aún no están adjuntas a GitHub**.
+
+| US baseline | Estado 23/11 | Cambios / evidencia incremental | Reserva |
+| --- | --- | --- | --- |
+| US-V1-001 Autenticación y RBAC | **ACEPTADA QA** | Firebase DRIVER autenticado con ruta propia; E23-01, E23-03 | Negativos de otros usuarios/roles sin ensayo desplegado |
+| US-V1-002 Panel operador | **ACEPTADA QA** | Dashboard, pedidos/rutas y sedes probados en QA; evidencia anterior E12 y escenario operador nov. 2026 | Usabilidad no formal |
+| US-V1-003 Crear pedido geo | **ACEPTADA QA** | Cinco pedidos sintéticos del segundo recorrido asignado | Negativos geocodificación pendientes |
+| US-V1-004 Consulta/filtro de pedidos | **ACEPTADA QA** (**sube de parcial**) | En operador se contrastaron filtros 18 totales / 2 FAILED / 10 DELIVERED y reset, en sesión de preparación del segundo recorrido | Verificación de filtros y dataset con capturas sin anexos binarios en repo |
+| US-V1-005 Asignación | **ACEPTADA QA** | Ruta cinco paradas asignada al QA; conductor reservado hasta cierre; E23-01, E23-12 | Negativas/concurrencia no certificadas |
+| US-V1-006 Ruta propia Android | **ACEPTADA QA** | Recuperación de ruta PLANNED→ACTIVE→COMPLETED; E23-01/E23-10 | Sin ensayo negativo con otro UID |
+| US-V1-007 Estado entrega | **ACEPTADA QA** | 4 DELIVERED + 1 FAILED, 0 pendientes; 2 pedidos comprobados con GET Firestore directo y 3 visualizados Android; E23-07/08/09 | Faltan 3 lecturas REST individuales y revisión del motivo persistido |
+| US-V1-008 GPS ACTIVE consentido | **ACEPTADA QA** (**sube de pendiente**) | Consentimiento OS, fix del emulador recibido y persistido en Firestore HTTP 200, precisión 5 m y posterior borrado HTTP 404; E23-05/06/13 | **SIMULACIÓN**, no prueba móvil de campo, historial ni tiempo de viaje real |
+| US-V1-009 Baseline vs optimizada | **ACEPTADA QA** | Ruta 5 paradas ~48,43→41,68 km, ~71→61 min; 14,59 % **estimado** | No demuestra objetivo de 20 % real |
+| US-V1-010 Secuencia Android | **ACEPTADA QA** | Cinco paradas ordenadas y mapa OSM, E23-02 | Línea entre paradas no es ruta vial |
+| US-V1-011 Dashboard KPI/puntualidad | **PARCIAL QA** | Distancias, tiempos y progreso se muestran; dashboard de operación disponible | Sin puntualidad observada ni datos de campo |
+| US-V1-015 Piloto comparable/export | **PENDIENTE** | Segundo recorrido sintético E2E documentado, pero no equivale a muestra experimental A/B ni export de datos observado | Plan de medición, muestra, export, línea base y resultados faltantes |
+
+**Resultado P0 funcional al 23/11:** **10/12 aceptadas = 83,33 %**, **1/12 parcial = 8,33 %**, **1/12 pendiente = 8,33 %**. Los estados se refieren exclusivamente a **capacidades funcionales observadas en QA**, con las reservas explícitas. No es avance global del producto, cumplimiento de rúbrica académica ni cobertura de pruebas.
+
+**Trazabilidad de implementación:** US-IMP-012 (start), US-IMP-013 (deliver/fail), US-IMP-014 (complete) fueron probadas y se vinculan con US-V1-006/007/008; no renumerar ni sustituir los identificadores del baseline.
+
+**SQA:** resultado de cierre REST independiente 5/5 en ruta `fb413b71-...`: status COMPLETED, conductor disponible, reserva borrada, historial presente, GPS eliminado. La persistencia de GPS se verificó **antes** del cierre (HTTP 200). No reutilizar ruta cerrada. No presentar datos simulados como observaciones reales.
+
+**Siguiente gate:** adjuntar screenshots originales con autorización/anonimización; export de logs, controles negativos y requisitos éticos/seguridad; piloto comparable. Mantener la fecha de ambos escenarios, evitando mezclar el 22/11 de seis paradas con el 23/11 de cinco.
