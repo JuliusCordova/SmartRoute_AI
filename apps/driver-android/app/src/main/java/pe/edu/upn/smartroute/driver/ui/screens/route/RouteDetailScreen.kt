@@ -54,7 +54,6 @@ import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import com.google.firebase.auth.FirebaseAuth
 import pe.edu.upn.smartroute.driver.di.AppConfig
-import pe.edu.upn.smartroute.driver.di.AppConfig
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
