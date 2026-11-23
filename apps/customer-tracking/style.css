@@ -1,0 +1,9 @@
+:root{font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:#14293a;background:#eef2f4}*{box-sizing:border-box}
+body{margin:0;min-height:100vh}.top{background:linear-gradient(110deg,#0b1a2b,#112e40);color:white;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:18px clamp(16px,4vw,44px)}
+.brand{font-size:21px;font-weight:800}.brand em{color:#ffc95b;font-style:normal}.mark{display:inline-grid;place-items:center;background:#ffc95b;color:#0b1a2b;width:36px;height:36px;border-radius:9px;margin-right:6px}.privacy{font-size:12px;color:#d4e7ed}
+.page{max-width:530px;margin:44px auto;padding:0 16px}.card{padding:clamp(22px,5vw,36px);background:white;border:1px solid #d8e1e6;border-radius:20px;box-shadow:0 15px 35px #0b1a2b10}
+.eyebrow{color:#8a6922;font-size:11px;letter-spacing:1.5px;font-weight:800}h1{font-size:clamp(24px,5vw,34px);margin:10px 0}h2{font-size:22px;margin:16px 0 8px}.hint{font-size:13px;color:#5f7380;line-height:1.7}
+.reference{font-size:12px;color:#617683;font-weight:800;letter-spacing:1px;margin-top:24px}.status{padding:16px 0;border-bottom:1px solid #d8e1e6}.eta{background:#fff2d8;color:#543d12;font-size:21px;font-weight:800;padding:19px;border-radius:14px;margin-top:14px}
+.privacy-note{font-size:12px;color:#516f7b;background:#e8f2f8;border-radius:12px;padding:12px;line-height:1.6;margin-top:20px}
+.footer{font-size:12px;color:#667983;text-align:center;line-height:1.6;margin:22px auto}
+@media(max-width:480px){.top{padding:13px 16px}.brand{font-size:17px}.privacy{font-size:10px}.page{margin:18px auto}}
