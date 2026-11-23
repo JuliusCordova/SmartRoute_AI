@@ -53,6 +53,8 @@ import java.util.Locale
 import pe.edu.upn.smartroute.driver.di.AppConfig
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
+import com.google.firebase.auth.FirebaseAuth
+import pe.edu.upn.smartroute.driver.di.AppConfig
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
@@ -137,7 +139,9 @@ fun RouteDetailScreen(
                             viewModel.isDemoData ->
                                 "Modo demostración: no se pueden iniciar rutas reales."
                             !writeAllowed ->
-                                "La sesión o esta compilación no está autorizada para iniciar esta ruta QA."
+                                AppConfig.qaWriteBlockReason(
+                                    FirebaseAuth.getInstance().currentUser?.uid, s.data.id
+                                ) ?: "La sesión Android no coincide con la autorización del repositorio."
                             s.data.version == null ->
                                 "El Gateway no entregó la versión de la ruta; inicio bloqueado."
                             else -> null
