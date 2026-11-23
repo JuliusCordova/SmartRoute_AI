@@ -97,7 +97,7 @@ def verified_firebase_token(authorization: str | None) -> str:
     if not token or len(token) > 4096 or any(ch.isspace() for ch in token):
         raise HTTPException(401, "Invalid Firebase bearer token")
     try:
-        decoded = auth.verify_id_token(token, app=firebase_app(), check_revoked=False)
+        decoded = auth.verify_id_token(token, app=firebase_app(), check_revoked=True)
         if not isinstance(decoded.get("uid"), str) or not decoded["uid"]:
             raise ValueError("UID missing")
     except Exception:
