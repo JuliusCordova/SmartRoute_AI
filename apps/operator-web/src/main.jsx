@@ -521,10 +521,10 @@ function App(){
         <section className="panel mapSection"><div className="panelhead"><div><h2>Mapa de operaciones</h2><p>OpenStreetMap · puntos seleccionados · recorridos</p></div><span className="count">Lima, Perú</span></div><MapPanel orders={orders} depot={depot} centerLabel={centerName.trim()||"Centro de distribución"} preview={preview} savedRoute={savedRoute} gps={gpsPosition} chosen={form.latitude===null?null:{...form,label:form.address_label}}/></section>
         <section className="panel results"><div className="panelhead"><h2>03 · Comparación</h2><span className="count">{preview?"ESTIMADO":"PENDIENTE DE CÁLCULO"}</span></div>
           {preview?<><div className="metrics">
-            <div className="metric"><small>Orden original</small><strong>{mins(preview.baseline_seconds)}</strong><span>{km(preview.baseline_meters)}</span></div>
-            <div className="metric chosen"><small>OR-Tools</small><strong>{mins(preview.optimized_seconds)}</strong><span>{km(preview.optimized_meters)}</span></div>
-            <div className="metric"><small>Mejora estimada</small><strong>{preview.improvement_pct.toFixed(2)}%</strong><span>Sobre la misma matriz</span></div>
-          </div><div className="sequence"><b>Secuencia calculada:</b> Centro de distribución → {preview.ordered_order_ids.map(id=>orders.find(o=>o.id===id)?.address_label||id).join(" → ")} → Centro de distribución</div><p className="fineprint">Fuente: {preview.matrix_provider} · Huella matriz: {preview.matrix_fingerprint.slice(0,12)}… · {preview.warnings.join(". ")}. No hay ahorro real observado.</p></>:<div className="empty">Selecciona pedidos y solicita una optimización para comparar recorridos. No se genera ninguna cifra sin datos de la matriz vial.</div>}
+            <div className="metric"><small>Orden original</small><strong>{mins(preview.baseline_seconds)}</strong><span>{km(preview.baseline_meters)} · {preview.baseline_seconds} s exactos</span></div>
+            <div className="metric chosen"><small>OR-Tools</small><strong>{mins(preview.optimized_seconds)}</strong><span>{km(preview.optimized_meters)} · {preview.optimized_seconds} s exactos</span></div>
+            <div className="metric"><small>Mejora estimada de tiempo</small><strong>{preview.improvement_pct.toFixed(2)}%</strong><span>Calculada con segundos exactos</span></div>
+          </div><div className="sequence"><b>Secuencia calculada:</b> Centro de distribución → {preview.ordered_order_ids.map(id=>orders.find(o=>o.id===id)?.address_label||id).join(" → ")} → Centro de distribución</div><p className="fineprint">Fuente: {preview.matrix_provider} · Huella matriz: {preview.matrix_fingerprint.slice(0,12)}… · {preview.warnings.join(". ")}. Los minutos visibles se redondean; el porcentaje se calcula sobre los segundos exactos anteriores. No hay ahorro real observado.</p></>:<div className="empty">Selecciona pedidos y solicita una optimización para comparar recorridos. No se genera ninguna cifra sin datos de la matriz vial.</div>}
         </section>
         {savedRoute&&<section className="panel results">
           <div className="panelhead"><h2>05 · Ruta persistida</h2><div><span className="count">{savedRoute.status}</span> <button className="outline" disabled={!user||busy} onClick={()=>run(()=>showSavedRoute(savedRoute.id))}>Actualizar estado</button></div></div>
@@ -537,14 +537,14 @@ function App(){
           </div>}
           {savedRoute.distribution_center_id&&<p><strong>Centro de distribución:</strong> {savedRoute.distribution_center_name||savedRoute.distribution_center_id} · {savedRoute.distribution_center_id.slice(0,8)}</p>}
           <div className="metrics">
-            <div className="metric"><small>Orden original</small><strong>{mins(savedRoute.baseline_seconds)}</strong><span>{km(savedRoute.baseline_meters)}</span></div>
-            <div className="metric chosen"><small>Ruta guardada</small><strong>{mins(savedRoute.optimized_seconds)}</strong><span>{km(savedRoute.optimized_meters)}</span></div>
-            <div className="metric"><small>Mejora estimada</small><strong>{savedRoute.improvement_pct.toFixed(2)}%</strong><span>openrouteservice</span></div>
+            <div className="metric"><small>Orden original</small><strong>{mins(savedRoute.baseline_seconds)}</strong><span>{km(savedRoute.baseline_meters)} · {savedRoute.baseline_seconds} s exactos</span></div>
+            <div className="metric chosen"><small>Ruta guardada</small><strong>{mins(savedRoute.optimized_seconds)}</strong><span>{km(savedRoute.optimized_meters)} · {savedRoute.optimized_seconds} s exactos</span></div>
+            <div className="metric"><small>Mejora estimada de tiempo</small><strong>{savedRoute.improvement_pct.toFixed(2)}%</strong><span>Segundos exactos · openrouteservice</span></div>
           </div>
           <div className="sequence"><b>Secuencia persistida:</b> Centro de distribución → {(savedRoute.stops?.length?savedRoute.stops.map(s=>s.sequence+". "+s.address_label):savedRoute.ordered_order_ids).join(" → ")} → Depósito</div>
           <p className="fineprint">Mapa: {savedRoute.geometry_origin==="openrouteservice"?"trazado vial estimado de openrouteservice":"conectores esquemáticos entre paradas; no representan la vialidad"}.</p>
           {savedRoute.detail_warnings?.length>0&&<p className="fineprint">{savedRoute.detail_warnings.join(". ")}</p>}
-          <p className="fineprint">Origen: {savedRoute.data_origin}. {savedRoute.driver_id?"Conductor asignado: "+savedRoute.driver_id+" · "+(savedRoute.status==="ACTIVE"?"recorrido iniciado.":savedRoute.status==="COMPLETED"?"recorrido finalizado.":"pendiente de activación."):"Esta ruta aún no está asignada a un conductor."}</p>
+          <p className="fineprint">Origen: {savedRoute.data_origin}. Minutos redondeados para lectura; porcentaje sobre segundos exactos. {savedRoute.driver_id?"Conductor asignado: "+savedRoute.driver_id+" · "+(savedRoute.status==="ACTIVE"?"recorrido iniciado.":savedRoute.status==="COMPLETED"?"recorrido finalizado.":"pendiente de activación."):"Esta ruta aún no está asignada a un conductor."}</p>
           {savedRoute.started_at&&<p className="fineprint">Inicio registrado: {new Date(savedRoute.started_at).toLocaleString("es-PE")} · versión {savedRoute.version}. Las métricas mostradas siguen siendo estimaciones, no tiempos observados.</p>}
         </section>}
         {savedRoute&&<section className="panel results">
