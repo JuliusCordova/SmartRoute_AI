@@ -35,3 +35,18 @@
 ## Matriz P0 con aceptación y capturas (22/11/2026)
 
 [Ver matriz de aceptación de 12 historias P0](evidence/MATRIZ_ACEPTACION_P0_2026-11-22.md): **8 aceptadas QA / 2 parciales / 2 pendientes**, con evidencia E01–E12, criterio, excepción y contrato. El anexo Word contiene las 12 capturas incrustadas; no se han subido binarios a GitHub. No confundir el 66,7 % QA con el 90 % de la rúbrica.
+
+
+## Actualización de avance — Dashboard WOW y ruta nueva de cinco pedidos (22/11/2026)
+
+**Nuevo corte documentado:** [QA Dashboard WOW, US-004, US-017 y conductor asignado](evidence/CORTE_QA_WOW_SEDES_RUTA_CONDUCTOR_2026-11-22.md).
+
+- Despliegues QA etiquetados sin tráfico principal: API `00016-siq`; Gateway `00018-yek`; Web `00010-jef`. Gateway `/health` HTTP 200 y preflight CORS HTTP 204; login Firebase QA corregido mediante autorización del dominio y lectura autenticada comprobada.
+- Dashboard ejecutivo con 18 pedidos, 3 rutas, efectividad 83,3 % y mejora estimada 15,0 %. Filtro ejecutivo `Finalizadas` muestra 2 rutas y mejora estimada 13,6 %.
+- **US-V1-004**: filtros `No entregados` 2/18, `Entregados` 10/18, `Todos` 18/18: **PASS QA funcional**. Estado P0 de referencia actualizado en adenda de matriz (9 aceptadas/1 parcial/2 pendientes, con alcance limitado).
+- **US-017**: catálogo de tres sedes, búsqueda, edición, desactivación de SEDE-NORTE (inactiva), selección de SEDE-SUR; optimización con OR-Tools/ORS y vínculo al centro de distribución guardado: **PASS QA funcional**.
+- Ruta nueva `fb413b71-c963-570f-be61-500e9eadfb7b`: 5 pedidos, SEDE-SUR San Isidro, 71→61 min y 48,43→41,68 km, mejora estimada 14,59 %. Persistencia `PLANNED` y posterior **asignación al conductor QA** verificadas visualmente. **La ruta sigue PLANNED, no iniciada.**
+- **Próximo paso:** recibir esta nueva ruta en Android con identidad del conductor QA; después realizar pruebas GPS `ACTIVE` con consentimiento y registrar evidencias. **US-V1-008, tiempos reales, puntualidad y piloto comparable siguen pendientes.**
+- Observación de UI: la secuencia guardada termina con `Depósito` aunque el catálogo usa `Centro de distribución`; corregir posteriormente.
+
+**Este agregado no convierte el staging QA en producción**, no acredita ahorro real ni incorpora los PNG originales al repositorio.
