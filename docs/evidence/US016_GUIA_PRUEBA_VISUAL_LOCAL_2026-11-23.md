@@ -1,6 +1,6 @@
 # US-016 — Procedimiento reproducible de prueba visual local (Windows + Cloud Shell)
 
-**Fecha:** 23/11/2026. **Estado:** escenario A (`IN_TRANSIT`) verificado visualmente con simulador HTTP; escenario B (`FAILED`) aún pendiente de captura. **No es una prueba E2E de GCP** ni demuestra seguridad de tokens productivos.
+**Fecha:** 23/11/2026. **Estado:** escenarios A (`IN_TRANSIT`) y B (`FAILED`) verificados visualmente con simulador HTTP en Windows/localhost. **No es una prueba E2E de GCP** ni demuestra seguridad de tokens productivos.
 
 ## Objetivo
 Abrir `apps/customer-tracking` en Chrome de Windows usando un servidor HTTP **sintético** en Cloud Shell y un túnel SSH local, evitando el bloqueo CORS del proxy de vista previa web de Cloud Shell. No modificar ni desplegar Cloud Run, Firebase, Firestore, ni `main`.
@@ -87,7 +87,7 @@ http://127.0.0.1:8081/#/t/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
 
 Resultados esperados:
 - A: `PEDIDO SR-DEMO-A`, `Pedido en camino`, sin ETA calculada ni GPS/recorrido.
-- B: `PEDIDO SR-DEMO-B`, estado equivalente a entrega fallida, sin datos del pedido A; pendiente de evidencia visual.
+- B: `PEDIDO SR-DEMO-B`, `Entrega no completada`, sin datos del pedido A; **PASS visual en Chrome Windows**.
 - Sin token: `Enlace inválido`.
 - Token con formato correcto pero no registrado: `Seguimiento no disponible` (respuesta HTTP 404 del simulador).
 - Comprobar también vista móvil en DevTools (320 × 650 px), lectura, ausencia de desbordamiento y datos privados.
@@ -100,7 +100,8 @@ Al abrir el seguimiento por la URL de vista previa `https://8081-...cloudshell.d
 ## 5. Evidencia obtenida y límites
 - **PASS:** captura de Chrome Windows en `127.0.0.1:8081` con pedido `SR-DEMO-A` mostrado como `Pedido en camino`, texto de ETA no disponible y aviso de privacidad. Captura compartida en la conversación del 23/11/2026; **la imagen no está subida como binario a este repositorio**.
 - **PASS previo:** `curl` con pedido sintético A => 200 + JSON esperado.
-- **PENDIENTE:** captura de B, estados de error, vista móvil con pedido válido, ajuste visual frente al prototipo y E2E con API/gateway reales en entorno aislado.
+- **PASS:** captura B en Chrome Windows en `127.0.0.1:8081`, con `SR-DEMO-B`, mensaje `Entrega no completada`, sin ETA ni GPS ni datos del pedido A. Captura compartida en conversación del 23/11/2026; **no subida como binario a GitHub**.
+- **PENDIENTE:** estados de error con token de formato válido pero desconocido, vista móvil con pedido válido, comparación final con prototipo y E2E con API/gateway reales en entorno aislado.
 - **No confundir:** el simulador acepta claves ficticias `A*43` y `B*43`, por lo que no valida generación criptográfica, expiración o control de acceso real. Eso requiere las pruebas del backend/emulador y seguridad perimetral.
 - Mantener PR #81 (frontend), #82 (backend) y #83 (evidencia) abiertos y sin activar el seguimiento público hasta QA integral.
 
