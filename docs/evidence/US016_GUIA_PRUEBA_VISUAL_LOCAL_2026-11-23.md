@@ -134,3 +134,13 @@ Se cargó la aplicación FastAPI de la API con repositorio sintético en memoria
 **Alcance preciso:** comprobación de contrato entre las dos aplicaciones FastAPI a través de transporte sustituido; no es una llamada real a Cloud Run ni prueba de Firestore, IAM o infraestructura real. No se alteró `main`, no se hizo despliegue. La evidencia de ejecución es la salida de terminal compartida por el usuario en la conversación; no se ha almacenado una captura binaria en GitHub.
 
 **Pendiente para QA integral:** E2E aislado con transporte real, control de tasa perimetral, verificación de logs sin secretos, CORS/referrer/no-store, compatibilidad UX con prototipo y entrega segura de enlaces. Las pruebas existentes de unidad/regresión y las pruebas visuales locales se consideran cerradas para los escenarios ejecutados.
+
+## 7. Decisión de alcance: rate limiting reservado para producción (23/11/2026)
+
+**Decisión expresa del responsable:** el `rate limiting` distribuido y la protección perimetral asociada pertenecen a la **versión productiva**, no al criterio de aceptación del **MVP**. No deben impedir el **cierre de las pruebas locales del MVP** ni ocasionar infraestructura/costos adicionales para el ejercicio.
+
+**Condiciones de MVP:** mantener controles existentes de token temporal, revocación, aislamiento por pedido, protección de datos y acceso del operador; pruebas y demostraciones con pedidos sintéticos en entorno controlado. La prueba de integración HTTP simulada pasó y no equivale a despliegue E2E.
+
+**Reserva de seguridad:** retirar la condición de rate limiting del *gate del MVP* no autoriza abrir el endpoint a tráfico público irrestricto. El feature gate de seguimiento permanece desactivado en el despliegue actual; antes de exponerlo a usuarios externos debe existir una decisión de riesgo y controles adecuados a esa exposición. Rate limiting distribuido, endurecimiento perimetral y su validación HTTP 429 se transfieren al backlog de producción.
+
+**Pendientes del MVP no relacionados con rate limiting:** consolidar las ramas de implementación en GitHub, comprobar integración del frontend/gateway/backend en escenario controlado (más allá de mocks), comparación final con el prototipo y cerrar evidencia de aceptación.
