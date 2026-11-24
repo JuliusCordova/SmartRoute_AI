@@ -12,6 +12,7 @@ const cfg = window.__SMARTROUTE_CONFIG__ || {};
 const configured = Boolean(cfg.firebase?.apiKey && cfg.firebase?.appId && cfg.gatewayUrl);
 const auth = configured ? getAuth(initializeApp(cfg.firebase)) : null;
 const GATEWAY = (cfg.gatewayUrl || "").replace(/\/$/, "");
+const CUSTOMER_TRACKING_URL = (cfg.customerTrackingUrl || "").replace(/\/$/, "");
 const LIMA = [-12.095, -77.035];
 const inside = (lat,lng) => lat>=-12.30&&lat<=-11.80&&lng>=-77.20&&lng<=-76.80;
 const mins = v=>Math.round(v/60).toLocaleString("es-PE")+" min";
@@ -185,8 +186,10 @@ function App(){
   const pendingSaveKey=useRef(null),pendingAssignmentKey=useRef(null);
   const [orderState,setOrderState]=useState("ALL"),[orderSearch,setOrderSearch]=useState("");
   const [routeListState,setRouteListState]=useState("ALL");
+  const [trackingLink,setTrackingLink]=useState(null);
+  const [trackingNotice,setTrackingNotice]=useState("");
   const [coverage,setCoverage]=useState({ordersTruncated:false,routesTruncated:false});
-  useEffect(()=>auth?onAuthStateChanged(auth,u=>{setUser(u);setPreview(null);setOrders([]);setSavedRoutes([]);setSavedRoute(null);setDrivers([]);setSelectedDriver("");setCenters([]);setEditingCenter(null);setCurrentCenterId(null);pendingSaveKey.current=null;pendingAssignmentKey.current=null;setStatus(u?"Sesión iniciada. Consulta tus pedidos.":"Inicia sesión para consultar pedidos.");},e=>setError(e.code)):undefined,[]);
+  useEffect(()=>auth?onAuthStateChanged(auth,u=>{setUser(u);setPreview(null);setOrders([]);setSavedRoutes([]);setSavedRoute(null);setDrivers([]);setSelectedDriver("");setCenters([]);setEditingCenter(null);setCurrentCenterId(null);setTrackingLink(null);setTrackingNotice("");pendingSaveKey.current=null;pendingAssignmentKey.current=null;setStatus(u?"Sesión iniciada. Consulta tus pedidos.":"Inicia sesión para consultar pedidos.");},e=>setError(e.code)):undefined,[]);
   useEffect(()=>{
     if(!user||form.latitude!==null||form.address_label.trim().length<3){
       setSuggestions([]);setSearchState("");setSearching(false);return;
@@ -435,6 +438,27 @@ function App(){
     try { await showSavedRoute(saved.id); }
     catch { setStatus("Ruta guardada; vuelve a seleccionarla en Rutas guardadas para ver el mapa."); }
   });
+  const issueTrackingLink=order=>run(async()=>{
+    // Operator Firebase identity is required at the gateway and API.
+    setTrackingLink(null);setTrackingNotice("");
+    if(!CUSTOMER_TRACKING_URL)throw new Error("La URL web del cliente no está configurada");
+    const result=await api("/api/v1/orders/"+encodeURIComponent(order.id)+"/tracking-link","POST",await token());
+    if(typeof result.token!=="string" || !/^[A-Za-z0-9_-]{32,256}$/.test(result.token))
+      throw new Error("El servidor no devolvió un enlace válido");
+    setTrackingLink({orderId:order.id, token:result.token, expiresAt:result.expires_at,
+      url:CUSTOMER_TRACKING_URL+"/#/t/"+result.token});
+    setTrackingNotice("Enlace generado solo para este pedido. Compártelo únicamente con su destinatario.");
+  });
+  const revokeTrackingLink=()=>run(async()=>{
+    if(!trackingLink)return;
+    await api("/api/v1/orders/tracking-link/revoke","POST",await token(),{token:trackingLink.token});
+    setTrackingLink(null);setTrackingNotice("Enlace revocado. Ya no permite consultar el pedido.");
+  });
+  const copyTrackingLink=async()=>{
+    if(!trackingLink)return;
+    try{await navigator.clipboard.writeText(trackingLink.url);setTrackingNotice("Enlace copiado. Compártelo únicamente con el destinatario.");}
+    catch{setTrackingNotice("Copia el enlace desde el campo de texto.");}
+  };
   const selected=orders.filter(o=>o.checked);
   const visibleOrders=filterOrders(orders,orderState,orderSearch);
   const visibleRoutes=filterRoutes(savedRoutes,routeListState);
@@ -473,7 +497,21 @@ function App(){
             {ORDER_STATES.map(st=><option key={st} value={st}>{stateLabel[st]}</option>)}
           </select></label><label>Buscar dirección o ID<input type="search" aria-label="Buscar pedidos" placeholder="Buscar pedido…" value={orderSearch} onChange={e=>setOrderSearch(e.target.value)}/></label></div>
           <p className="filter-result" role="status">{visibleOrders.length} de {orders.length} pedidos visibles{coverage.ordersTruncated?" · Consulta parcial":""}</p>
-          <div className="orders">{visibleOrders.length?visibleOrders.map(o=><label className="order" key={o.id}><input type="checkbox" checked={o.checked} disabled={busy||o.status!=="PENDING"} onChange={e=>{setOrders(old=>old.map(x=>x.id===o.id?{...x,checked:e.target.checked}:x));setPreview(null);pendingSaveKey.current=null}}/><span><strong>{o.address_label}</strong><small>{o.status} · {o.id.slice(0,8)}</small></span></label>): <p className="empty">{orders.length?"No hay pedidos con este filtro.":"No hay pedidos cargados. Pulsa Actualizar."}</p>}</div>
+          <div className="orders">{visibleOrders.length?visibleOrders.map(o=><div className="order" key={o.id}>
+            <label className="order-identity"><input type="checkbox" checked={o.checked} disabled={busy||o.status!=="PENDING"} onChange={e=>{setOrders(old=>old.map(x=>x.id===o.id?{...x,checked:e.target.checked}:x));setPreview(null);pendingSaveKey.current=null}}/><span><strong>{o.address_label}</strong><small>{stateLabel[o.status]||o.status} · {o.id.slice(0,8)}</small></span></label>
+            <button type="button" className="outline tracking-action" disabled={!user||busy||!CUSTOMER_TRACKING_URL} onClick={()=>issueTrackingLink(o)} title="Solo pedidos sintéticos; requiere habilitación de US-016 en API y gateway">Crear enlace</button>
+          </div>): <p className="empty">{orders.length?"No hay pedidos con este filtro.":"No hay pedidos cargados. Pulsa Actualizar."}</p>}</div>
+          {trackingNotice&&<p className="tracking-notice" role="status">{trackingNotice}</p>}
+          {trackingLink&&<div className="tracking-share" aria-label="Enlace temporal de seguimiento">
+            <strong>Seguimiento · pedido {trackingLink.orderId.slice(0,8)}</strong>
+            <p>Enlace privado temporal. Caduca: {trackingLink.expiresAt?new Date(trackingLink.expiresAt).toLocaleString("es-PE"):"según el servidor"}.</p>
+            <input type="text" aria-label="Enlace de seguimiento del destinatario" readOnly value={trackingLink.url} onFocus={e=>e.target.select()}/>
+            <div className="tracking-share-actions">
+              <button type="button" disabled={busy} onClick={copyTrackingLink}>Copiar enlace</button>
+              <button type="button" className="outline" disabled={busy} onClick={revokeTrackingLink}>Revocar enlace</button>
+            </div>
+            <small>El enlace permite consultar el estado del pedido sin iniciar sesión. No lo publiques.</small>
+          </div>}
         </section>
         <section className="panel">
           <div className="panelhead"><h2>02 · Centro de distribución</h2><span className="count">ORIGEN Y RETORNO · 1 VEHÍCULO</span></div>
