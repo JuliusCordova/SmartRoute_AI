@@ -13,3 +13,19 @@ export function customerView(payload) {
   return {reference:payload.order_reference,status:payload.status,label:STATUSES[payload.status],
     eta:payload.status==="IN_TRANSIT"?eta:null};
 }
+
+/** Indicador referencial del estado actual; no constituye historial ni eventos observados. */
+const STAGES = [
+  {status:"PENDING",label:"Registrado"},
+  {status:"ASSIGNED",label:"Asignado"},
+  {status:"IN_TRANSIT",label:"En camino"},
+  {status:"DELIVERED",label:"Entregado"}
+];
+export function progressForStatus(status) {
+  if (!Object.hasOwn(STATUSES,status)) throw new Error("Estado inválido");
+  if (status==="FAILED") return {failure:true,steps:[]};
+  const current=STAGES.findIndex(step=>step.status===status);
+  return {failure:false,steps:STAGES.map((step,index)=>({
+    label:step.label,phase:index<current?"previous":index===current?"current":"upcoming"
+  }))};
+}
