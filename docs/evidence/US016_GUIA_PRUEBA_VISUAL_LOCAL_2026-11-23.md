@@ -110,3 +110,27 @@ Al abrir el seguimiento por la URL de vista previa `https://8081-...cloudshell.d
 
 ## Cierre de sesión
 Para detener el simulador: `Ctrl+C` en la terminal A. Para cerrar el túnel: `exit` en PuTTY. No detener otros servicios Cloud Shell ni eliminar archivos generados.
+
+## 6. Prueba integrada HTTP simulada: gateway → backend (23/11/2026)
+
+**Resultado de ejecución manual en Cloud Shell:**
+```text
+PASS: Pedido A
+PASS: Pedido B
+PASS: Token desconocido
+PASS: Revocación independiente
+PASS: Operador protegido
+RESULTADO: INTEGRACION A/B APROBADA
+```
+
+Se cargó la aplicación FastAPI de la API con repositorio sintético en memoria (`test_public_tracking.setup()`), y la aplicación FastAPI del gateway en el mismo intérprete. El método `httpx.AsyncClient.request` del gateway fue sustituido por un adaptador que llama `TestClient(api_app)`. La obtención de ID token IAM se sustituyó por el valor ficticio `iam`. El feature gate público fue activado **solo dentro de `patch.dict(os.environ,...)` de ese proceso**, sin alterar configuraciones GCP.
+
+- Token A → HTTP 200, referencia A y campos públicos limitados.
+- Token B → HTTP 200, referencia B y campos públicos limitados.
+- Token sintético desconocido → HTTP 404.
+- Revocar A → HTTP 404 para A; B siguió respondiendo HTTP 200.
+- `GET /api/v1/orders` sin Firebase → HTTP 401.
+
+**Alcance preciso:** comprobación de contrato entre las dos aplicaciones FastAPI a través de transporte sustituido; no es una llamada real a Cloud Run ni prueba de Firestore, IAM o infraestructura real. No se alteró `main`, no se hizo despliegue. La evidencia de ejecución es la salida de terminal compartida por el usuario en la conversación; no se ha almacenado una captura binaria en GitHub.
+
+**Pendiente para QA integral:** E2E aislado con transporte real, control de tasa perimetral, verificación de logs sin secretos, CORS/referrer/no-store, compatibilidad UX con prototipo y entrega segura de enlaces. Las pruebas existentes de unidad/regresión y las pruebas visuales locales se consideran cerradas para los escenarios ejecutados.
