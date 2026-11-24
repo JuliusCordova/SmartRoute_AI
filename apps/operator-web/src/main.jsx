@@ -84,18 +84,35 @@ function MapPanel({orders,depot,preview,chosen,savedRoute,centerLabel,gps}){
     }
     const byId=Object.fromEntries(valid.map(o=>[o.id,[o.geo.latitude,o.geo.longitude]]));
     if(preview){
+      // Comparación del prototipo: las dos secuencias sobre el mismo mapa.
+      // La base es una referencia esquemática; no se presenta como ruta vial real.
+      if(points.length>2){
+        L.polyline([...points,points[0]],{
+          color:"#64748b",weight:3,dashArray:"7 7",opacity:.9
+        }).bindPopup("Secuencia base · conectores esquemáticos").addTo(group);
+      }
       if(preview.route_geometry?.length){
-        L.polyline(preview.route_geometry.map(([lng,lat])=>[lat,lng]),{color:"#e5a219",weight:5,opacity:.9}).addTo(group);
+        L.polyline(preview.route_geometry.map(([lng,lat])=>[lat,lng]),{
+          color:"#e5a219",weight:5,opacity:.9
+        }).bindPopup("Secuencia optimizada · geometría vial estimada").addTo(group);
       }else{
         const p=[points[0],...preview.ordered_order_ids.map(id=>byId[id]).filter(Boolean),points[0]];
-        if(p.length>2)L.polyline(p,{color:"#e5a219",weight:4,dashArray:"7 8"}).addTo(group);
+        if(p.length>2)L.polyline(p,{
+          color:"#e5a219",weight:4,dashArray:"2 5"
+        }).bindPopup("Secuencia optimizada · conectores esquemáticos").addTo(group);
       }
     } else if(points.length>1) {
       L.polyline([...points,points[0]],{color:"#758c9d",weight:2,dashArray:"5 7"}).addTo(group);
     }
     if(points.length>1) map.current.fitBounds(L.latLngBounds(points).pad(.25),{maxZoom:14});
   },[orders,depot,preview,chosen,savedRoute,centerLabel,gps]);
-  return <div className="mapWrap"><div ref={ref} className="map" /><span className="mapCaption">{savedRoute ? (savedRoute.geometry_origin==="openrouteservice"?"Ruta guardada · recorrido vial estimado":"Ruta guardada · conectores esquemáticos, NO recorrido vial") : preview ? (preview.route_geometry?"Recorrido vial estimado":"Conectores esquemáticos; matriz vial estimada"):"Orden original · conectores esquemáticos"}</span></div>;
+  return <div className="mapWrap"><div ref={ref} className="map" />
+    {preview&&!savedRoute&&<div className="map-comparison-legend" aria-label="Comparación de rutas">
+      <span><i className="map-base-line"/>Base · secuencia esquemática</span>
+      <span><i className="map-optimized-line"/>Optimizada · {preview.route_geometry?"vial estimada":"esquemática"}</span>
+    </div>}
+    <span className="mapCaption">{savedRoute ? (savedRoute.geometry_origin==="openrouteservice"?"Ruta guardada · recorrido vial estimado":"Ruta guardada · conectores esquemáticos, NO recorrido vial") : preview ? "Comparación base vs. optimizada · ambas secuencias estimadas" : "Orden original · conectores esquemáticos"}</span>
+  </div>;
 }
 
 
