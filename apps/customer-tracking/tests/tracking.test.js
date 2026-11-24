@@ -1,5 +1,5 @@
 import test from "node:test";import assert from "node:assert/strict";
-import {tokenFromPath,customerView} from "../tracking.js";
+import {tokenFromPath,customerView,progressForStatus} from "../tracking.js";
 test("requires opaque token, rejects guesses and path traversal",()=>{
  const token="X".repeat(43);assert.equal(tokenFromPath("/t/"+token),token);
  for(const path of ["/t/123","/t/../orders","/orders/"+token,"/t/%2e%2e"]) assert.equal(tokenFromPath(path),null);
@@ -36,4 +36,18 @@ test("token de longitud límite y caracteres permitidos",()=>{
  assert.equal(tokenFromPath("/t/"+"c".repeat(257)),null);
  assert.equal(tokenFromPath("/t/"+"d".repeat(31)),null);
  assert.equal(tokenFromPath("/t/"+min+"?next=other"),null);
+});
+
+test("progreso orientativo consistente con estados permitidos",()=>{
+ const pending=progressForStatus("PENDING");
+ assert.equal(pending.failure,false);
+ assert.deepEqual(pending.steps.map(x=>x.phase),["current","upcoming","upcoming","upcoming"]);
+ assert.deepEqual(progressForStatus("ASSIGNED").steps.map(x=>x.phase),["previous","current","upcoming","upcoming"]);
+ assert.deepEqual(progressForStatus("IN_TRANSIT").steps.map(x=>x.phase),["previous","previous","current","upcoming"]);
+ assert.deepEqual(progressForStatus("DELIVERED").steps.map(x=>x.phase),["previous","previous","previous","current"]);
+});
+test("entrega fallida no inventa etapas cumplidas y estados invalidos se rechazan",()=>{
+ assert.deepEqual(progressForStatus("FAILED"),{failure:true,steps:[]});
+ assert.throws(()=>progressForStatus("UNKNOWN"));
+ assert.throws(()=>progressForStatus("__proto__"));
 });
