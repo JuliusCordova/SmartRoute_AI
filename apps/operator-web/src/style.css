@@ -127,3 +127,9 @@
 .tracking-share input{width:100%;min-width:0;border:1px solid #a5c7ce;background:#fff;color:#193d4b;padding:10px;border-radius:6px;font-size:12px}
 .tracking-share-actions{display:flex;gap:8px;flex-wrap:wrap}
 .tracking-share small{color:#617581}
+
+/* US-011: comparación visible de secuencia base y optimizada en un mismo mapa. */
+.map-comparison-legend{position:absolute;z-index:510;top:12px;left:12px;display:flex;flex-wrap:wrap;gap:10px;max-width:calc(100% - 24px);padding:9px 12px;border:1px solid #d4e0e7;border-radius:9px;background:#ffffffed;color:#193d4b;font-size:11px;font-weight:700;box-shadow:0 2px 12px #0e25331c}
+.map-comparison-legend span{display:inline-flex;align-items:center;gap:7px}
+.map-comparison-legend i{display:inline-block;width:24px;height:0;border-top:4px solid #e5a219}
+.map-comparison-legend .map-base-line{border-top:3px dashed #64748b}
