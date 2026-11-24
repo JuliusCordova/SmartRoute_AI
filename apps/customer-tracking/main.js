@@ -9,7 +9,7 @@ async function init(){
   if(!token){message("Enlace inválido","Revisa el enlace original de seguimiento.");return;}
   const controller=new AbortController(), timeout=setTimeout(()=>controller.abort(),10000);
   try{
-    // Este endpoint no existe todavía: debe implementarse en el backend con validación del token y respuesta acotada.
+    // El gateway enruta esta consulta pública al backend solo cuando el feature gate está habilitado.
     const resp=await fetch("/api/v1/public/tracking",{
       method:"POST",cache:"no-store",credentials:"omit",referrerPolicy:"no-referrer",
       headers:{"Accept":"application/json","Content-Type":"application/json"},body:JSON.stringify({token}),signal:controller.signal
