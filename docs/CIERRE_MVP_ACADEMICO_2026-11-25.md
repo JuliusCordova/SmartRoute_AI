@@ -1,4 +1,4 @@
-# Acta de cierre del MVP académico — SmartRoute AI
+> **ACTUALIZACIÓN 25/11/2026:** Tras esta acta se añadieron dos evidencias de cierre: [US-011 comparación visual validada](evidence/US011_COMPARACION_VISUAL_VALIDADA_2026-11-25.md) y [SEC-01 revocación QA en Gateway staging](evidence/SEC01_REVOCACION_REAL_STAGING_2026-11-25.md), donde se documenta la secuencia **403 antes, revocación registrada, 401 después** y sus límites. Los pendientes descritos más abajo reflejan el corte **anterior a estas pruebas**. Los archivos binarios de capturas y el APK siguen sin estar adjuntos al repositorio.\n\n# Acta de cierre del MVP académico — SmartRoute AI
 
 **Fecha:** 25/11/2026 · **Proyecto:** Capstone UPN, período de 7 semanas.
 
