@@ -198,3 +198,17 @@ jobs:
           echo "Project: $PROJECT_ID, region: $REGION" >> "$GITHUB_STEP_SUMMARY"
           echo "HTTP /health and /ready checks passed with Cloud Run IAM; /ready is process-only." >> "$GITHUB_STEP_SUMMARY"
           echo "Firebase Auth, orders and Firestore staging persistence still require an authenticated application test." >> "$GITHUB_STEP_SUMMARY"
+
+  customer-tracking-tests:
+    name: customer-tracking-tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/customer-tracking
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Client tracking contract tests
+        run: npm test

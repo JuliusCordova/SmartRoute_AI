@@ -114,3 +114,22 @@
 .operator-indicators-foot{font-size:11px;color:#657b85;line-height:1.55;margin:17px 0 0}
 .operator-no-data{background:#f5f7f8;padding:24px;border-radius:9px;font-size:12px;color:#647984}
 @media(max-width:650px){.operator-indicators{padding:15px 11px}.operator-indicators-head{flex-direction:column;gap:3px}.operator-scope{margin-bottom:14px}.operator-indicators-head h2{font-size:20px}}
+
+/* US-016: private, short-lived customer link actions in the order list. */
+.order{cursor:default;justify-content:space-between}
+.order-identity{display:flex;align-items:center;gap:12px;min-width:0;flex:1;cursor:pointer}
+.order-identity span{min-width:0;overflow-wrap:anywhere}
+.tracking-action{flex-shrink:0;font-size:11px;padding:7px 9px}
+.tracking-notice{margin:10px 0;color:#1c6673;font-weight:600}
+.tracking-share{margin-top:12px;padding:14px;border:1px solid #a5c7ce;border-radius:10px;background:#f0f8fa;display:grid;gap:8px}
+.tracking-share strong{font-size:13px;color:#193d4b}
+.tracking-share p{margin:0}
+.tracking-share input{width:100%;min-width:0;border:1px solid #a5c7ce;background:#fff;color:#193d4b;padding:10px;border-radius:6px;font-size:12px}
+.tracking-share-actions{display:flex;gap:8px;flex-wrap:wrap}
+.tracking-share small{color:#617581}
+
+/* US-011: comparación visible de secuencia base y optimizada en un mismo mapa. */
+.map-comparison-legend{position:absolute;z-index:510;top:12px;left:12px;display:flex;flex-wrap:wrap;gap:10px;max-width:calc(100% - 24px);padding:9px 12px;border:1px solid #d4e0e7;border-radius:9px;background:#ffffffed;color:#193d4b;font-size:11px;font-weight:700;box-shadow:0 2px 12px #0e25331c}
+.map-comparison-legend span{display:inline-flex;align-items:center;gap:7px}
+.map-comparison-legend i{display:inline-block;width:24px;height:0;border-top:4px solid #e5a219}
+.map-comparison-legend .map-base-line{border-top:3px dashed #64748b}

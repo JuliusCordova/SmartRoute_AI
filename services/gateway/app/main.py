@@ -45,7 +45,8 @@ def permitted_endpoint(method: str, path: str) -> bool:
             or (method == "POST" and ASSIGN_DRIVER_PATH.fullmatch(path) is not None)
             or (method == "POST" and DRIVER_STOP_PATH.fullmatch(path) is not None)
             or (method == "GET" and GPS_READ_PATH.fullmatch(path) is not None)
-            or (method in {"GET", "PUT", "DELETE"} and CENTER_ID_PATH.fullmatch(path) is not None))
+            or (method in {"GET", "PUT", "DELETE"} and CENTER_ID_PATH.fullmatch(path) is not None)
+            or (method == "POST" and TRACKING_LINK_PATH.fullmatch(path) is not None))
 ORDER_PATH = re.compile(r"^/api/v1/orders$")
 ROUTE_PATH = re.compile(r"^/api/v1/routes$")
 ASSIGN_PATH = re.compile(r"^/api/v1/routes/[0-9a-fA-F-]{36}/orders$")
@@ -54,9 +55,12 @@ ASSIGN_DRIVER_PATH = re.compile(r"^/api/v1/optimized-routes/[0-9a-fA-F-]{36}/ass
 GPS_READ_PATH = re.compile(r"^/api/v1/routes/[0-9a-fA-F-]{36}/location$")
 DRIVER_STOP_PATH = re.compile(r"^/api/v1/driver/me/route/stops/[^/]{1,128}/(?:deliver|fail)$")
 CENTER_ID_PATH = re.compile(r"^/api/v1/distribution-centers/[0-9a-fA-F-]{36}$")
+TRACKING_LINK_PATH = re.compile(r"^/api/v1/orders/[0-9a-fA-F-]{36}/tracking-link$")
 MAX_BODY = 16_384
 ALLOWED = {
     ("GET", "/api/v1/orders"),
+    ("POST", "/api/v1/orders/tracking-link/revoke"),
+    ("POST", "/api/v1/public/tracking"),
     ("POST", "/api/v1/distribution-centers"),
     ("GET", "/api/v1/distribution-centers"),
     ("GET", "/api/v1/driver/me/route"),
@@ -134,7 +138,10 @@ async def proxy(path: str, request: Request):
     if origin is not None and origin not in origins:
         raise HTTPException(403, "Origin not allowed")
 
-    firebase_token = verified_firebase_token(request.headers.get("authorization"))
+    public_request = target_path == "/api/v1/public/tracking" and request.method == "POST"
+    if public_request and os.getenv("SMARTROUTE_PUBLIC_TRACKING_ENABLED") != "true":
+        raise HTTPException(404, "Endpoint not supported")
+    firebase_token = None if public_request else verified_firebase_token(request.headers.get("authorization"))
     if request.headers.get("content-length"):
         try:
             if int(request.headers["content-length"]) > MAX_BODY:
@@ -151,9 +158,10 @@ async def proxy(path: str, request: Request):
         # Host or caller-controlled IAM Authorization.
         headers = {
             "X-Serverless-Authorization": "Bearer " + iam_token,
-            "Authorization": "Bearer " + firebase_token,
             "Content-Type": "application/json",
         }
+        if firebase_token is not None:
+            headers["Authorization"] = "Bearer " + firebase_token
         async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
             upstream = await client.request(
                 method=request.method,
@@ -169,7 +177,11 @@ async def proxy(path: str, request: Request):
 
     # Bound only response content and type; never forward Set-Cookie or backend
     # internal headers. API response data is from the authenticated backend.
-    output_headers = {"Cache-Control": "no-store"}
+    output_headers = {
+        "Cache-Control": "no-store",
+        "Referrer-Policy": "no-referrer",
+        "X-Robots-Tag": "noindex, nofollow",
+    }
     if origin in origins:
         output_headers["Access-Control-Allow-Origin"] = origin
         output_headers["Vary"] = "Origin"
@@ -188,6 +200,8 @@ def preflight(path: str, request: Request):
     method = request.headers.get("access-control-request-method", "")
     target_path = "/api/v1/" + path
     if origin not in origins or not permitted_endpoint(method, target_path):
+        raise HTTPException(403, "CORS preflight not allowed")
+    if target_path == "/api/v1/public/tracking" and os.getenv("SMARTROUTE_PUBLIC_TRACKING_ENABLED") != "true":
         raise HTTPException(403, "CORS preflight not allowed")
     return Response(status_code=204, headers={
         "Access-Control-Allow-Origin": origin,

@@ -1,3 +1,5 @@
+> **CORTE FINAL DE ALCANCE 24/11/2026:** El cronograma de 7 semanas que sigue es una línea base histórica. **US-012 Gemini y US-015 piloto de campo/exportación pasan a mejoras futuras y NO se ejecutan ni figuran como pendientes de la entrega de noviembre.** Tampoco se incorporan US-013/014 offline, deshacer entrega ni semáforo. Prioridad de cierre: web operador visual, Android, US-016 y evidencias. [Decisión vigente](decisions/CR-2026-11-24-02_US012_US015_MEJORAS_FUTURAS.md).
+
 # Plan maestro de desarrollo — SmartRoute AI Capstone (7 semanas)
 **Versión:** 1.0 · **Estado:** planificado, no ejecutado · **Nube:** GCP · **Persistencia vigente:** Firestore Standard (Native mode).
 **Fuentes de verdad:** [SPEC](../specs/SPEC.md), [ADR Firestore](FIRESTORE_STANDARD_MVP.md), [arquitectura GCP](ARCHITECTURE_GCP.md), [criterios BDD](../tests/acceptance.feature), [matriz UPN](Matriz_Maestra_Capstone_SDD.md), [AGENTS.md](../AGENTS.md).

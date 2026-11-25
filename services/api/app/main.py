@@ -437,3 +437,71 @@ def get_last_driver_location(
         raise HTTPException(404, str(exc)) from None
     except Exception:
         raise HTTPException(503, "GPS lookup unavailable") from None
+
+
+# US-016: explicitly opt-in public tracking, no Firebase on resolve; issuance/revocation OPERATOR-only.
+from .public_tracking import (
+    TokenRequest, TrackingView, TrackingLink, FirestorePublicTrackingRepository,
+    LinkUnavailable, TrackingDisabled,
+)
+
+@lru_cache(maxsize=1)
+def get_public_tracking_repository() -> FirestorePublicTrackingRepository:
+    # Deny disabled feature before any Firestore client initialization or network I/O.
+    from .public_tracking import require_enabled
+    try:
+        require_enabled()
+    except TrackingDisabled:
+        raise HTTPException(404, "Not found") from None
+    return FirestorePublicTrackingRepository()
+
+
+@app.post("/api/v1/orders/{order_id}/tracking-link", response_model=TrackingLink,
+          tags=["Customer tracking"])
+def create_tracking_link(
+    order_id: str,
+    actor: UserContext = Depends(require_operator),
+    repo: FirestorePublicTrackingRepository = Depends(get_public_tracking_repository),
+):
+    try:
+        return repo.issue(order_id)
+    except TrackingDisabled:
+        raise HTTPException(404, "Not found") from None
+    except LinkUnavailable:
+        raise HTTPException(404, "Not found") from None
+    except Exception:
+        raise HTTPException(503, "Tracking unavailable") from None
+
+
+@app.post("/api/v1/orders/tracking-link/revoke", status_code=204,
+          tags=["Customer tracking"])
+def revoke_tracking_link(
+    payload: TokenRequest,
+    actor: UserContext = Depends(require_operator),
+    repo: FirestorePublicTrackingRepository = Depends(get_public_tracking_repository),
+):
+    try:
+        repo.revoke(payload.token)
+    except (TrackingDisabled, LinkUnavailable):
+        raise HTTPException(404, "Not found") from None
+    except Exception:
+        raise HTTPException(503, "Tracking unavailable") from None
+    return Response(status_code=204)
+
+
+@app.post("/api/v1/public/tracking", response_model=TrackingView,
+          tags=["Customer tracking"])
+def read_public_tracking(
+    payload: TokenRequest,
+    response: Response,
+    repo: FirestorePublicTrackingRepository = Depends(get_public_tracking_repository),
+):
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    try:
+        return repo.resolve(payload.token)
+    except (TrackingDisabled, LinkUnavailable):
+        raise HTTPException(404, "Not found") from None
+    except Exception:
+        raise HTTPException(503, "Tracking unavailable") from None

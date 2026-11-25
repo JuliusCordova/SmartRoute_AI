@@ -7,6 +7,7 @@ const PORT = Number(process.env.PORT || "8080");
 const MIME = {".html":"text/html; charset=utf-8",".js":"text/javascript; charset=utf-8",".css":"text/css; charset=utf-8",".svg":"image/svg+xml",".png":"image/png",".ico":"image/x-icon"};
 const config = {
   gatewayUrl: process.env.GATEWAY_URL || "",
+  customerTrackingUrl: process.env.CUSTOMER_TRACKING_URL || "https://smartroute-customer-staging-913797829604.us-central1.run.app",
   tileUrl: process.env.OSM_TILE_URL || "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
   firebase: {
     apiKey: process.env.FIREBASE_API_KEY || "",
