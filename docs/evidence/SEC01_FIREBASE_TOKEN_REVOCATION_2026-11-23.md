@@ -1,4 +1,4 @@
-# SEC-01 — Verificación de revocación Firebase en Gateway + API
+> **ADENDA 25/11/2026:** La validación controlada E2E del **Gateway en staging** se ejecutó después de este corte: cuenta QA `DRIVER`, solicitud inicial `GET /api/v1/orders?limit=50` con **HTTP 403** por RBAC, revocación Firebase confirmada a las 19:32:30 UTC, reenvío con token antiguo según procedimiento y **HTTP 401**. Ver [registro SEC-01 25/11](SEC01_REVOCACION_REAL_STAGING_2026-11-25.md). Las casillas pendientes de abajo son **históricas a 23/11**; permanecen fuera de esta prueba la medición de latencia/coste y una comprobación E2E separada del backend privado.\n\n# SEC-01 — Verificación de revocación Firebase en Gateway + API
 
 **Fecha:** 23/11/2026 · **Alcance:** cambio de código y regresión automatizada; sin despliegue GCP.
 
